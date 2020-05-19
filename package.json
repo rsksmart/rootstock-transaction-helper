@@ -2,7 +2,7 @@
   "name": "rsk-transaction-helper",
   "version": "1.0.0",
   "description": "Utilitary library to send transactions on RSK using Web3 and Ethereum-js",
-  "main": "rsk-transaction-helper.js",
+  "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
