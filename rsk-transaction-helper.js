@@ -65,7 +65,7 @@ class RskTransactionHelper {
     } 
 
     async signAndSendTransactionCheckingBalance(call, senderAddress, senderPrivateKey, destinationAddress, estimatedGasPercentIncrement) {
-        estimatedGasPercentIncrement == undefined ? 10 : estimatedGasPercentIncrement;
+        estimatedGasPercentIncrement = estimatedGasPercentIncrement == undefined ? 10 : estimatedGasPercentIncrement;
         
         // Check sender address has enough balance
         const checkBalance = await this.checkBalanceForCall(call, senderAddress);
