@@ -1,5 +1,5 @@
 "use strict";
-const peglib = require('peglib');
+const web3 = require('web3');
 const Tx = require('ethereumjs-tx');
 const RskTransactionHelperException = require('./rsk-transaction-helper-error');
 
@@ -10,22 +10,12 @@ const DEFAULT_RSK_CONFIG = {
 class RskTransactionHelper {
     constructor(rskConfig) { 
         this.rskConfig = Object.assign({}, DEFAULT_RSK_CONFIG, rskConfig);
-        this.createRskClient();
         this.createWeb3Client();
-    }
-
-    createRskClient() {
-        try {
-            this.rskClient = peglib.rsk.getClient(this.rskConfig.hostUrl);
-        }
-        catch (err) {
-            throw new RskTransactionHelperException('Error creating RSK client', err);
-        }
     }
 
     createWeb3Client() {
         try {
-            this.web3Client = new(require('web3'))(this.rskConfig.hostUrl);
+            this.web3Client = new web3(this.rskConfig.hostUrl);
         }
         catch (err) {
             throw new RskTransactionHelperException('Error creating Web3 client', err);
@@ -37,15 +27,15 @@ class RskTransactionHelper {
             let privateKey = new Buffer(senderPrivateKey, 'hex');
         
             let rawTx = {
-                nonce: this.web3Client.utils.toHex(await this.rskClient.eth.getTransactionCount(senderAddress, "pending")),
-                gasPrice: gasPrice,
-                gasLimit: gasLimit,
+                nonce: this.web3Client.utils.toHex(await this.web3Client.eth.getTransactionCount(senderAddress, "pending")),
+                gasPrice: this.web3Client.utils.toBN(gasPrice),
+                gasLimit: this.web3Client.utils.toBN(gasLimit),
                 to: destinationAddress,
-                value: value || '0x00',
+                value: this.web3Client.utils.toBN(value || '0x00'),
                 data: abi,
                 r: 0,
                 s: 0,
-                v: await this.rskClient.eth.net.getId()
+                v: await this.web3Client.eth.net.getId()
             }
     
             let tx = new Tx(rawTx);
@@ -54,7 +44,7 @@ class RskTransactionHelper {
             let serializedTx = tx.serialize();
     
             return new Promise((resolve, reject) => {
-                this.rskClient.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
+                this.web3Client.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
                     .once('transactionHash', resolve)
                     .once('error', reject);
             });
@@ -81,22 +71,22 @@ class RskTransactionHelper {
             senderAddress, 
             senderPrivateKey, 
             checkBalance.gasPrice, 
-            checkBalance.estimatedGas.mul(this.rskClient.utils.toBN(estimatedGas.toString())).div(this.rskClient.utils.toBN("100")), // Add a 10% increment
+            checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(estimatedGas.toString())).div(this.web3Client.utils.toBN("100")), // Add a 10% increment
             destinationAddress, 
             call.encodeABI()
         );
     }
 
     async checkBalanceForCall(call, callerAddress) {
-        const estimatedGas = this.rskClient.utils.toBN(await call.estimateGas());
-        let gasPrice = this.rskClient.utils.toBN(await this.rskClient.eth.getGasPrice());
+        const estimatedGas = this.web3Client.utils.toBN(await call.estimateGas());
+        let gasPrice = this.web3Client.utils.toBN(await this.web3Client.eth.getGasPrice());
 
         if (gasPrice.isZero()) {
-            gasPrice = this.rskClient.utils.toBN("1");
+            gasPrice = this.web3Client.utils.toBN("1");
         }
 
         const requiredBalance = estimatedGas.mul(gasPrice);
-        const callerBalance = this.rskClient.utils.toBN(await this.rskClient.eth.getBalance(callerAddress));
+        const callerBalance = this.web3Client.utils.toBN(await this.web3Client.eth.getBalance(callerAddress));
 
         return {
             estimatedGas: estimatedGas,
