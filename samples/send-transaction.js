@@ -13,13 +13,10 @@ let web3 = require('web3');
     console.log(await web3Client.eth.getBalance(recipient));
 
     console.log(
-        await rskTxHelper.signAndSendTransaction(
+        await rskTxHelper.transferFundsCheckingBalance(
             '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826',
             "c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4",
-            1,
-            6800000,
             recipient,
-            null,
             1000000000
         )
     );

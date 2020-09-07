@@ -1,6 +1,6 @@
 {
   "name": "rsk-transaction-helper",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "Utilitary library to send transactions on RSK using Web3 and Ethereum-js",
   "main": "index.js",
   "scripts": {
