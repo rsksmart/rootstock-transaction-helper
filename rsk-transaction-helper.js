@@ -1,4 +1,4 @@
-"use strict";
+'use strict';
 const web3 = require('web3');
 const Tx = require('ethereumjs-tx');
 const RskTransactionHelperException = require('./rsk-transaction-helper-error');
@@ -27,7 +27,7 @@ class RskTransactionHelper {
             const privateKey = Buffer.from(senderPrivateKey, 'hex');
         
             const rawTx = {
-                nonce: this.web3Client.utils.toHex(await this.web3Client.eth.getTransactionCount(senderAddress, "pending")),
+                nonce: this.web3Client.utils.toHex(await this.web3Client.eth.getTransactionCount(senderAddress, 'pending')),
                 gasPrice: this.web3Client.utils.toBN(gasPrice),
                 gasLimit: this.web3Client.utils.toBN(gasLimit),
                 to: destinationAddress,
@@ -69,7 +69,7 @@ class RskTransactionHelper {
             senderAddress, 
             senderPrivateKey, 
             checkBalance.gasPrice, 
-            checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(estimatedGas.toString())).div(this.web3Client.utils.toBN("100")), // Add a 10% increment
+            checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(estimatedGas.toString())).div(this.web3Client.utils.toBN('100')), // Add a 10% increment
             destinationAddress, 
             call.encodeABI()
         );
@@ -79,7 +79,7 @@ class RskTransactionHelper {
         try {
             const privateKey = Buffer.from(senderPrivateKey, 'hex');
             const rawTx = {
-                nonce: this.web3Client.utils.toHex(await this.web3Client.eth.getTransactionCount(senderAddress, "pending")),
+                nonce: this.web3Client.utils.toHex(await this.web3Client.eth.getTransactionCount(senderAddress, 'pending')),
                 gasPrice: this.web3Client.utils.toBN(gasPrice),
                 gasLimit: this.web3Client.utils.toBN(TRANSFER_GAS_COST),
                 to: destinationAddress,
@@ -125,7 +125,7 @@ class RskTransactionHelper {
     async getGasPrice() {
         const gasPrice = this.web3Client.utils.toBN(await this.web3Client.eth.getGasPrice());
         if (gasPrice.isZero()) {
-            return this.web3Client.utils.toBN("1");
+            return this.web3Client.utils.toBN('1');
         }
         return gasPrice;
     }
@@ -153,18 +153,18 @@ class RskTransactionHelper {
     async mine(amountOfBlocks = 1) {
 
         if(amountOfBlocks < 1) {
-            throw new Error("Invalid `amountOfBlocks` provided. Needs to be greater than 0 if provided.");
+            throw new Error('Invalid `amountOfBlocks` provided. Needs to be greater than 0 if provided.');
         }
 
-        const durationInMilliseconds = 1;
-        const id = Date.now();
+        const durationOneMinuteInMilliseconds = 1000 * 60;
+        let id = Date.now();
 
         const evmIncreaseTime = () => {
             return new Promise((resolve, reject) => {
                 this.web3Client.currentProvider.send({
                     jsonrpc: '2.0',
                     method: 'evm_increaseTime',
-                    params: [durationInMilliseconds],
+                    params: [durationOneMinuteInMilliseconds],
                     id: id,
                 }, (error, result) => {
                     if(error) {
@@ -185,6 +185,7 @@ class RskTransactionHelper {
                     if(error) {
                         return reject(error);
                     }
+                    id = result.id + 1;
                     resolve(result);
                 });
             });

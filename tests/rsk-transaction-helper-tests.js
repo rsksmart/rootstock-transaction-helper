@@ -35,7 +35,7 @@ describe('RskTransactionHelper tests', () => {
         assert.equal(evmIncreaseTimeCall.args[0].method, 'evm_increaseTime', 'First call has to be to `evm_increaseTime`');
         assert.equal(evmMineCall.args[0].method, 'evm_mine', 'Second call has to be to `evm_mine`');
 
-        assert.equal(evmIncreaseTimeCall.args[0].params[0], 1, 'Increase time param is 1');
+        assert.equal(evmIncreaseTimeCall.args[0].params[0], 60000, 'Increase time param is 6000 milliseconds, which is a minute');
 
         assert.notEqual(evmIncreaseTimeCall.args[0].id, evmMineCall.args[0].id, 'Both calls ids should be different');
 
@@ -149,7 +149,7 @@ describe('RskTransactionHelper tests', () => {
 
         const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
         const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = "0xe6dae024a76a42f13e6b92241d3802b465e55c1a";
+        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
         const value = 1000000000;
 
         const promise = rskTransactionHelper.transferFundsCheckingBalance(senderAddress, senderPrivateKey, recipient, value);
