@@ -4,16 +4,21 @@ const Tx = require('ethereumjs-tx');
 const RskTransactionHelperException = require('./rsk-transaction-helper-error');
 
 const DEFAULT_RSK_CONFIG = {
-    hostUrl: 'http://localhost:4450'
+    hostUrl: 'http://localhost:4444'
 };
 
 const TRANSFER_GAS_COST = 21000;
 
 class RskTransactionHelper {
     
-    constructor(rskConfig, web3Client) { 
+    constructor(rskConfig) { 
         this.rskConfig = Object.assign({}, DEFAULT_RSK_CONFIG, rskConfig);
-        this.web3Client = web3Client;
+        try {
+            this.web3Client = new web3(this.rskConfig.hostUrl);
+        }
+        catch (err) {
+            throw new RskTransactionHelperException('Error creating Web3 client', err);
+        }
     }
 
     async signAndSendTransaction(senderAddress, senderPrivateKey, gasPrice, gasLimit, destinationAddress, abi, value) {
@@ -104,13 +109,13 @@ class RskTransactionHelper {
         const balance = await this.getBalance(senderAddress);
         const gasPrice = await this.getGasPrice();
         const gasLimit = this.web3Client.utils.toBN(TRANSFER_GAS_COST);
-        const bnValue = this.web3Client.utils.toBN(value);
-        const requiredBalance = bnValue.add(gasLimit.mul(gasPrice));
+        value = this.web3Client.utils.toBN(value);
+        const requiredBalance = value.add(gasLimit.mul(gasPrice));
         if (requiredBalance.gt(balance)) {
             throw new Error(`Insufficient balance. Required: ${requiredBalance.toString()}, current balance: ${balance.toString()}`);
         }
 
-        return this.transferFunds(senderAddress, senderPrivateKey, destinationAddress, bnValue, gasPrice);
+        return this.transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasPrice);
     }
 
     async getBalance(address) {
@@ -145,22 +150,50 @@ class RskTransactionHelper {
         return this.web3Client.eth.getTransactionReceipt(txHash);
     }
 
-    async mine() {
-        const duration = 1;
+    async mine(amountOfBlocks = 1) {
+
+        if(amountOfBlocks < 1) {
+            throw new Error("Invalid `amountOfBlocks` provided. Needs to be greater than 0 if provided.");
+        }
+
+        const durationInMilliseconds = 1;
         const id = Date.now();
 
-        await this.web3Client.currentProvider.send({
-            jsonrpc: '2.0',
-            method: 'evm_increaseTime',
-            params: [duration],
-            id: id,
-        });
+        const evmIncreaseTime = () => {
+            return new Promise((resolve, reject) => {
+                this.web3Client.currentProvider.send({
+                    jsonrpc: '2.0',
+                    method: 'evm_increaseTime',
+                    params: [durationInMilliseconds],
+                    id: id,
+                }, (error, result) => {
+                    if(error) {
+                        return reject(error);
+                    }
+                    resolve(result);
+                });
+            });
+        };
 
-        await this.web3Client.currentProvider.send({
-            jsonrpc: '2.0',
-            method: 'evm_mine',
-            id: id + 1,
-        });
+        const evmMine = (increaseTimeResult) => {
+            return new Promise((resolve, reject) => {
+                this.web3Client.currentProvider.send({
+                    jsonrpc: '2.0',
+                    method: 'evm_mine',
+                    id: increaseTimeResult.id + 1,
+                }, (error, result) => {
+                    if(error) {
+                        return reject(error);
+                    }
+                    resolve(result);
+                });
+            });
+        };
+
+        for(let i = 0; i < amountOfBlocks; i++) {
+            const increaseTimeResult = await evmIncreaseTime();
+            await evmMine(increaseTimeResult);
+        }
 
     }
 
@@ -172,29 +205,11 @@ class RskTransactionHelper {
         return this.web3Client;
     }
 
-}
-
-class RskTransactionHelperBuilder {
-
-    withRskConfig(rskConfig) {
-        this.rskConfig = rskConfig;
-    }
-
-    withWeb3Client(web3Client) {
-        this.web3Client = web3Client;
-    }
-
-    build() {
-        const web3Client = this.web3Client || new web3(DEFAULT_RSK_CONFIG.hostUrl);
-        const rskConfig = this.rskConfig || DEFAULT_RSK_CONFIG;
-        const rskTransactionHelper = new RskTransactionHelper(rskConfig, web3Client);
-        return rskTransactionHelper;
+    async getBlockNumber() {
+        return await this.web3Client.eth.getBlockNumber();
     }
 
 }
 
-module.exports = {
-    RskTransactionHelper,
-    RskTransactionHelperBuilder
-};
+module.exports = RskTransactionHelper;
 
