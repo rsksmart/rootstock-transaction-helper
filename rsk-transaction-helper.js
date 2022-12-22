@@ -62,14 +62,17 @@ class RskTransactionHelper {
             throw new Error(`Insufficient balance. Required: ${checkBalance.requiredBalance.toString()}, current balance: ${checkBalance.callerBalance.toString()}`);
         }
 
-        const estimatedGas = 100 + estimatedGasPercentIncrement;
+        const gasIncrement = 100 + estimatedGasPercentIncrement;
+
+        // Add a 10% increment
+        const gasLimit = checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(gasIncrement.toString())).div(this.web3Client.utils.toBN('100'));
 
         // Sign and send raw transaction
         return this.signAndSendTransaction(
             senderAddress, 
             senderPrivateKey, 
             checkBalance.gasPrice, 
-            checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(estimatedGas.toString())).div(this.web3Client.utils.toBN('100')), // Add a 10% increment
+            gasLimit,
             destinationAddress, 
             call.encodeABI()
         );
@@ -153,10 +156,10 @@ class RskTransactionHelper {
     async mine(amountOfBlocks = 1) {
 
         if(amountOfBlocks < 1) {
-            throw new Error('Invalid `amountOfBlocks` provided. Needs to be greater than 0 if provided.');
+            throw new RskTransactionHelperException('Invalid `amountOfBlocks` provided. Needs to be greater than 0 if provided.');
         }
 
-        const durationOneMinuteInMilliseconds = 1000 * 60;
+        const durationInMilliseconds = 1000 * 60; // 1 minute
         let id = Date.now();
 
         const evmIncreaseTime = () => {
@@ -164,7 +167,7 @@ class RskTransactionHelper {
                 this.web3Client.currentProvider.send({
                     jsonrpc: '2.0',
                     method: 'evm_increaseTime',
-                    params: [durationOneMinuteInMilliseconds],
+                    params: [durationInMilliseconds],
                     id: id,
                 }, (error, result) => {
                     if(error) {
@@ -196,10 +199,6 @@ class RskTransactionHelper {
             await evmMine(increaseTimeResult);
         }
 
-    }
-
-    extendClient(method) {
-        this.web3Client.extend(method);
     }
 
     getClient() {

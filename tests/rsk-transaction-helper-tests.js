@@ -4,8 +4,8 @@ const RskTransactionHelper = require('../rsk-transaction-helper');
 
 const EventEmitter = require('events').EventEmitter;
 
-// No actual use of this host is being done in these unit tests. No need to have a node running on that host.
-const PROVIDER_URL = 'http://localhost:4450';
+// No actual call to this host is being made, but it's needed for the `currentProvider` object to be created.
+const PROVIDER_URL = 'http://localhost:4444';
 
 const increaseTimeResultMock = { jsonrpc: '2.0', id: 1671590107425, result: '0x1' };
 const mineResultMock = { jsonrpc: '2.0', id: 1671590107426, result: null };
@@ -19,7 +19,7 @@ describe('RskTransactionHelper tests', () => {
         });
 
         const web3Client = rskTransactionHelper.getClient();
-        
+
         const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
 
         currentProviderSendStub.onCall(0).callsArgWith(1, null, increaseTimeResultMock);
@@ -63,33 +63,6 @@ describe('RskTransactionHelper tests', () => {
 
         // 2 times for evm_increaseTime, 2 times for evm_mine
         sinon.assert.callCount(currentProviderSendStub, 4);
-
-    });
-
-    it('should extend the web3 client dynamically', () => {
-
-        const rskTransactionHelper = new RskTransactionHelper({
-            hostUrl: PROVIDER_URL
-        });
-
-        const web3Client = rskTransactionHelper.getClient();
-
-        sinon.replace(web3Client, 'extend', sinon.fake());
-
-        const extensionObject = {
-            property: 'personal',
-            methods: [{
-              name: 'newAccountWithSeed',
-              call: 'personal_newAccountWithSeed',
-              params: 1
-            }]
-          };
-
-        rskTransactionHelper.extendClient(extensionObject);
-
-        assert.isTrue(web3Client.extend.calledOnce, 'web3Client.extend should be called once');
-
-        assert.deepEqual(web3Client.extend.getCall(0).args[0], extensionObject, 'Arguments should be the same');
 
     });
 
