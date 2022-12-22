@@ -1,5 +1,5 @@
 'use strict';
-const web3 = require('web3');
+const Web3 = require('web3');
 const Tx = require('ethereumjs-tx');
 const RskTransactionHelperException = require('./rsk-transaction-helper-error');
 
@@ -14,7 +14,11 @@ class RskTransactionHelper {
     constructor(rskConfig) { 
         this.rskConfig = Object.assign({}, DEFAULT_RSK_CONFIG, rskConfig);
         try {
-            this.web3Client = new web3(this.rskConfig.hostUrl);
+            let host = this.rskConfig.hostUrl;
+            if(!host.startsWith('http') && !host.startsWith('https')){
+                host = `http://${host}`;
+            }
+            this.web3Client = new Web3(host);
         }
         catch (err) {
             throw new RskTransactionHelperException('Error creating Web3 client', err);
