@@ -131,15 +131,12 @@ class RskTransactionHelper {
 
     async getGasPrice() {
         const gasPrice = this.web3Client.utils.toBN(await this.web3Client.eth.getGasPrice());
-        if (gasPrice.isZero()) {
-            return this.web3Client.utils.toBN('1');
-        }
-        return gasPrice;
+        return !gasPrice.isZero() ? gasPrice : this.web3Client.utils.toBN('1');
     }
 
     async checkBalanceForCall(call, callerAddress) {
         const estimatedGas = this.web3Client.utils.toBN(await call.estimateGas());
-        const gasPrice = await getGasPrice();
+        const gasPrice = await this.getGasPrice();
 
         const requiredBalance = estimatedGas.mul(gasPrice);
         const callerBalance = await this.getBalance(callerAddress);
