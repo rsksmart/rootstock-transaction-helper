@@ -96,6 +96,42 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should return the gas price', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const expectedGasPrice = 1000;
+
+        sinon.replace(web3Client.eth, 'getGasPrice', sinon.fake.returns(expectedGasPrice));
+
+        const gasPrice = await rskTransactionHelper.getGasPrice();
+
+        assert.equal(gasPrice, expectedGasPrice);
+
+    });
+
+    it('should return the default 1 gas price', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const expectedGasPrice = 1;
+
+        sinon.replace(web3Client.eth, 'getGasPrice', sinon.fake.returns(0));
+
+        const gasPrice = await rskTransactionHelper.getGasPrice();
+
+        assert.equal(gasPrice, expectedGasPrice);
+
+    });
+
     it('should transfer funds checking balance', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
