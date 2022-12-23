@@ -7,11 +7,9 @@ const RskTransactionHelper = require('../rsk-transaction-helper');
 
     const rskTxHelper = new RskTransactionHelper(config);
 
-    const web3Client = rskTxHelper.getClient();
-
     const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
 
-    console.log('Current balance: ', await web3Client.eth.getBalance(recipient));
+    console.log('Current balance: ', (await rskTxHelper.getBalance(recipient)).toNumber());
 
     console.log('Transaction hash: ',
         await rskTxHelper.transferFundsCheckingBalance(
@@ -25,5 +23,5 @@ const RskTransactionHelper = require('../rsk-transaction-helper');
     // Wait 2 seconds for block to be mined
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    console.log('New Balance: ', await web3Client.eth.getBalance(recipient));
+    console.log('New Balance: ', (await rskTxHelper.getBalance(recipient)).toNumber());
 })();

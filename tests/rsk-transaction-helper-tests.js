@@ -5,6 +5,7 @@ const RskTransactionHelperError = require('../rsk-transaction-helper-error');
 const chaiAsPromise = require('chai-as-promised');
 chai.use(chaiAsPromise);
 const assert = chai.assert;
+const rewire = require('rewire');
 
 const EventEmitter = require('events').EventEmitter;
 
@@ -16,6 +17,24 @@ const mineResultMock = { jsonrpc: '2.0', id: 1671590107426, result: null };
 const TRANSFER_GAS_COST = 21000;
 
 describe('RskTransactionHelper tests', () => {
+
+    it('should fail constructing the Web3 instance', () => {
+
+        const RskTransactionHelper = rewire('../rsk-transaction-helper');
+        class Web3Mock {
+            constructor() {
+                throw new Error('Web3 creation error');
+            }
+        }
+        RskTransactionHelper.__set__('Web3', Web3Mock);
+
+        assert.throws(() => {
+            new RskTransactionHelper({
+                hostUrl: PROVIDER_URL
+            });
+        }, 'Error creating Web3 client');
+
+    });
 
     it('should mine 1 block as expected', async () => {
 
