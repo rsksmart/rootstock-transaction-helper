@@ -4,7 +4,7 @@ import { ContractSendMethod } from 'web3-eth-contract';
 
 import BN from 'bn.js';
 
-type BalanceForCallResponse = {
+export type BalanceForCallResponse = {
     estimatedGas: BN;
     requiredBalance: BN;
     callerBalance: BN,
