@@ -25,4 +25,5 @@ export interface RskTransactionHelper {
     signAndSendTransaction(senderAddress: string, senderPrivateKey: string, gasPrice: BN, gasLimit: BN, destinationAddress: string, abi: string, value: BN): Promise<string>;
     signAndSendTransactionCheckingBalance(call: ContractSendMethod, senderAddress: string, senderPrivateKey: string, destinationAddress: string, estimatedGasPercentIncrement: number): Promise<string>;
     checkBalanceForCall(call: ContractSendMethod, callerAddress: string): Promise<BalanceForCallResponse>;
+    getBlockNumber(): Promise<number>;
 }
