@@ -285,6 +285,27 @@ class RskTransactionHelper {
         return await this.web3Client.eth.getBlockNumber();
     }
 
+    /**
+     * 
+     * @param {string} seed to be used to create the account
+     * @returns {Promise<string>} returns the address of the account that was just created with the seed
+     */
+    async newAccountWithSeed(seed) {
+        return new Promise((resolve, reject) => {
+            this.web3Client.currentProvider.send({
+                jsonrpc: '2.0',
+                method: 'personal_newAccountWithSeed',
+                params: [seed],
+                id: new Date().getTime(),
+            }, (error, response) => {
+                if(error) {
+                    return reject(error);
+                }
+                resolve(response.result);
+            });
+        });
+    }
+
 }
 
 module.exports = RskTransactionHelper;
