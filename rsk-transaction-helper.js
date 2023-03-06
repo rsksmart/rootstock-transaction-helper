@@ -27,6 +27,20 @@ class RskTransactionHelper {
         } catch (err) {
             throw new RskTransactionHelperException('Error creating Web3 client', err);
         }
+
+        this.extendClient();
+
+    }
+
+    extendClient() {
+        this.web3Client.eth.extend({
+            property: 'personal',
+            methods: [{
+              name: 'newAccountWithSeed',
+              call: 'personal_newAccountWithSeed',
+              params: 1
+            }]
+        });
     }
 
     /**
