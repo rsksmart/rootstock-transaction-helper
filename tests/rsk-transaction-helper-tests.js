@@ -14,6 +14,8 @@ const PROVIDER_URL = 'http://localhost:4444';
 
 const increaseTimeResultMock = { jsonrpc: '2.0', id: 1671590107425, result: '0x1' };
 const mineResultMock = { jsonrpc: '2.0', id: 1671590107426, result: null };
+const newAccountWithSeedMock = { jsonrpc: '2.0', id: 1671590107426, result: '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826' };
+
 const TRANSFER_GAS_COST = 21000;
 
 describe('RskTransactionHelper tests', () => {
@@ -655,6 +657,54 @@ describe('RskTransactionHelper tests', () => {
         const transferFundsCheckingBalancePromise = rskTransactionHelper.transferFundsCheckingBalance(senderAddress, senderPrivateKey, recipient, value);
 
         await chai.expect(transferFundsCheckingBalancePromise).to.eventually.be.rejectedWith(Error, 'Insufficient balance. Required: 1021000000, current balance: 1');
+
+    });
+
+    it('should create a new account with seed', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
+
+        currentProviderSendStub.onCall(0).callsArgWith(1, null, newAccountWithSeedMock);
+
+        const seed = 'seed';
+        
+        const newAccount = await rskTransactionHelper.newAccountWithSeed(seed);
+
+        assert.isTrue(web3Client.currentProvider.send.calledOnce, '`currentProvider.send` method was not called once');
+
+        const newAccountWithSeedCall = web3Client.currentProvider.send.getCall(0);
+
+        assert.equal(newAccountWithSeedCall.args[0].method, 'personal_newAccountWithSeed', '');
+
+        assert.equal(newAccountWithSeedCall.args[0].params[0], seed, 'Uses the expected seed');
+
+        assert.equal(newAccountWithSeedCall.args[0].jsonrpc, '2.0', 'Expected jsonrpc version for first call is `2.0`');
+
+        assert.equal(newAccount, newAccountWithSeedMock.result, 'Returned account address should be as expected');
+
+    });
+
+    it('should fail with "error" while trying to create a new account with seed', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
+
+        currentProviderSendStub.onCall(0).callsArgWith(1, 'error', null);
+
+        const seed = 'seed';
+        
+        await chai.expect(rskTransactionHelper.newAccountWithSeed(seed)).to.eventually.be.rejectedWith('error');
 
     });
 
