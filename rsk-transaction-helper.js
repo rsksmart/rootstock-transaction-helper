@@ -306,6 +306,26 @@ class RskTransactionHelper {
         });
     }
 
+    /**
+     * Calls the `updateBridge` method of the federator to run bookkeeping logic.
+     * @returns null
+     */
+    async updateBridge() {
+        return new Promise((resolve, reject) => {
+            this.web3Client.currentProvider.send({
+                jsonrpc: '2.0',
+                method: 'fed_updateBridge',
+                params: [],
+                id: new Date().getTime(),
+            }, (error, response) => {
+                if(error) {
+                    return reject(error);
+                }
+                resolve(response.result);
+            });
+        });
+    }
+
 }
 
 module.exports = RskTransactionHelper;
