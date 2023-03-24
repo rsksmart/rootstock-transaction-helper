@@ -721,19 +721,19 @@ describe('RskTransactionHelper tests', () => {
 
         currentProviderSendStub.onCall(0).callsArgWith(1, null, updateBridgeMock);
 
-        const newAccount = await rskTransactionHelper.updateBridge();
+        const updateBridgeResponse = await rskTransactionHelper.updateBridge();
 
         assert.isTrue(web3Client.currentProvider.send.calledOnce, '`currentProvider.updateBridge` method was not called once');
 
-        const newAccountWithSeedCall = web3Client.currentProvider.send.getCall(0);
+        const updateBridgeCall = web3Client.currentProvider.send.getCall(0);
 
-        assert.equal(newAccountWithSeedCall.args[0].method, 'fed_updateBridge', 'Expected web3 instance method was not called');
+        assert.equal(updateBridgeCall.args[0].method, 'fed_updateBridge', 'Expected web3 instance method was not called');
 
-        assert.isEmpty(newAccountWithSeedCall.args[0].params, 'Params should be empty');
+        assert.isEmpty(updateBridgeCall.args[0].params, 'Params should be empty');
 
-        assert.equal(newAccountWithSeedCall.args[0].jsonrpc, '2.0', 'Expected jsonrpc version for first call is `2.0`');
+        assert.equal(updateBridgeCall.args[0].jsonrpc, '2.0', 'Expected jsonrpc version for first call is `2.0`');
 
-        assert.equal(newAccount, updateBridgeMock.result, 'Returned should be null as expected');
+        assert.equal(updateBridgeResponse, updateBridgeMock.result, 'Returned should be null as expected');
 
     });
 
