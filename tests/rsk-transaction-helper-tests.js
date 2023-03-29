@@ -15,6 +15,7 @@ const PROVIDER_URL = 'http://localhost:4444';
 const increaseTimeResultMock = { jsonrpc: '2.0', id: 1671590107425, result: '0x1' };
 const mineResultMock = { jsonrpc: '2.0', id: 1671590107426, result: null };
 const newAccountWithSeedMock = { jsonrpc: '2.0', id: 1671590107426, result: '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826' };
+const updateBridgeMock = { jsonrpc: '2.0', id: 1671590107427, result: null };
 
 const TRANSFER_GAS_COST = 21000;
 
@@ -680,13 +681,13 @@ describe('RskTransactionHelper tests', () => {
 
         const newAccountWithSeedCall = web3Client.currentProvider.send.getCall(0);
 
-        assert.equal(newAccountWithSeedCall.args[0].method, 'personal_newAccountWithSeed', '');
+        assert.equal(newAccountWithSeedCall.args[0].method, 'personal_newAccountWithSeed', 'Method is not as expected');
 
-        assert.equal(newAccountWithSeedCall.args[0].params[0], seed, 'Uses the expected seed');
+        assert.equal(newAccountWithSeedCall.args[0].params[0], seed, 'Did not use the expected seed');
 
         assert.equal(newAccountWithSeedCall.args[0].jsonrpc, '2.0', 'Expected jsonrpc version for first call is `2.0`');
 
-        assert.equal(newAccount, newAccountWithSeedMock.result, 'Returned account address should be as expected');
+        assert.equal(newAccount, newAccountWithSeedMock.result, 'Returned account address is not as expected');
 
     });
 
@@ -705,6 +706,50 @@ describe('RskTransactionHelper tests', () => {
         const seed = 'seed';
         
         await chai.expect(rskTransactionHelper.newAccountWithSeed(seed)).to.eventually.be.rejectedWith('error');
+
+    });
+
+    it('should update the bridge', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
+
+        currentProviderSendStub.onCall(0).callsArgWith(1, null, updateBridgeMock);
+
+        const updateBridgeResponse = await rskTransactionHelper.updateBridge();
+
+        assert.isTrue(web3Client.currentProvider.send.calledOnce, '`currentProvider.updateBridge` method was not called once');
+
+        const updateBridgeCall = web3Client.currentProvider.send.getCall(0);
+
+        assert.equal(updateBridgeCall.args[0].method, 'fed_updateBridge', 'Expected web3 instance method was not called');
+
+        assert.isEmpty(updateBridgeCall.args[0].params, 'Params should be empty');
+
+        assert.equal(updateBridgeCall.args[0].jsonrpc, '2.0', 'Expected jsonrpc version for first call is `2.0`');
+
+        assert.equal(updateBridgeResponse, updateBridgeMock.result, 'Returned should be null as expected');
+
+    });
+
+    it('should fail with "error" while trying to call updateBridge', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
+
+        currentProviderSendStub.onCall(0).callsArgWith(1, 'error', null);
+        
+        await chai.expect(rskTransactionHelper.updateBridge()).to.eventually.be.rejectedWith('error');
 
     });
 
