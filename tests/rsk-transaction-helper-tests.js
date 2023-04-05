@@ -19,6 +19,10 @@ const updateBridgeMock = { jsonrpc: '2.0', id: 1671590107427, result: null };
 
 const TRANSFER_GAS_COST = 21000;
 
+const nonConnectionErrorMock = {
+    message: 'A different error',
+};
+
 describe('RskTransactionHelper tests', () => {
 
     it('should fail constructing the Web3 instance', () => {
@@ -123,11 +127,11 @@ describe('RskTransactionHelper tests', () => {
 
         const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
 
-        currentProviderSendStub.onCall(0).callsArgWith(1, 'error', null);
+        currentProviderSendStub.onCall(0).callsArgWith(1, nonConnectionErrorMock, null);
         
         const minePromise = rskTransactionHelper.mine();
 
-        await chai.expect(minePromise).to.eventually.be.rejectedWith('error');
+        await chai.expect(minePromise).to.eventually.be.rejectedWith(nonConnectionErrorMock);
 
         assert.isTrue(web3Client.currentProvider.send.calledOnce, '`currentProvider.send` method was not called once');
 
@@ -152,11 +156,11 @@ describe('RskTransactionHelper tests', () => {
         const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
 
         currentProviderSendStub.onCall(0).callsArgWith(1, null, increaseTimeResultMock);
-        currentProviderSendStub.onCall(1).callsArgWith(1, 'error', null);
+        currentProviderSendStub.onCall(1).callsArgWith(1, nonConnectionErrorMock, null);
         
         const minePromise = rskTransactionHelper.mine();
 
-        await chai.expect(minePromise).to.eventually.be.rejectedWith('error');
+        await chai.expect(minePromise).to.eventually.be.rejectedWith(nonConnectionErrorMock);
 
         assert.isTrue(web3Client.currentProvider.send.calledTwice, '`currentProvider.send` method was not called once');
 
@@ -701,11 +705,11 @@ describe('RskTransactionHelper tests', () => {
 
         const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
 
-        currentProviderSendStub.onCall(0).callsArgWith(1, 'error', null);
+        currentProviderSendStub.onCall(0).callsArgWith(1, nonConnectionErrorMock, null);
 
         const seed = 'seed';
         
-        await chai.expect(rskTransactionHelper.newAccountWithSeed(seed)).to.eventually.be.rejectedWith('error');
+        await chai.expect(rskTransactionHelper.newAccountWithSeed(seed)).to.eventually.be.rejectedWith(nonConnectionErrorMock);
 
     });
 
@@ -747,9 +751,9 @@ describe('RskTransactionHelper tests', () => {
 
         const currentProviderSendStub = sinon.stub(web3Client.currentProvider, 'send');
 
-        currentProviderSendStub.onCall(0).callsArgWith(1, 'error', null);
+        currentProviderSendStub.onCall(0).callsArgWith(1, nonConnectionErrorMock, null);
         
-        await chai.expect(rskTransactionHelper.updateBridge()).to.eventually.be.rejectedWith('error');
+        await chai.expect(rskTransactionHelper.updateBridge()).to.eventually.be.rejectedWith(nonConnectionErrorMock);
 
     });
 
