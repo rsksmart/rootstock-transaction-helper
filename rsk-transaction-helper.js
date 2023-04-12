@@ -36,7 +36,7 @@ class RskTransactionHelper {
         }
     }
 
-    async withRetry(fn) {
+    async withRetryOnConnectionError(fn) {
         let attempts = 0;
         const maxAttempts = this.rskConfig.maxAttempts;
         while(attempts < maxAttempts) {
@@ -68,7 +68,7 @@ class RskTransactionHelper {
     async signAndSendTransaction(senderAddress, senderPrivateKey, gasPrice, gasLimit, destinationAddress, callData, value) {
         try {
             const privateKey = Buffer.from(senderPrivateKey, 'hex');
-            const transactionCount = await this.withRetry(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
+            const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
             const rawTx = {
                 nonce: transactionCount,
                 gasPrice: this.web3Client.utils.toBN(gasPrice),
@@ -94,7 +94,7 @@ class RskTransactionHelper {
                 });
             };
 
-            return await this.withRetry(sendSignedTransaction);
+            return await this.withRetryOnConnectionError(sendSignedTransaction);
                     
         } 
         catch (error) {
@@ -114,7 +114,7 @@ class RskTransactionHelper {
      */
     async signAndSendTransactionCheckingBalance(call, senderAddress, senderPrivateKey, destinationAddress, estimatedGasPercentIncrement = 10) {
         // Check sender address has enough balance
-        const checkBalance = await this.withRetry(async () => await this.checkBalanceForCall(call, senderAddress));
+        const checkBalance = await this.withRetryOnConnectionError(async () => await this.checkBalanceForCall(call, senderAddress));
 
         if (!checkBalance.isEnough) {
             throw new Error(`Insufficient balance. Required: ${checkBalance.requiredBalance.toString()}, current balance: ${checkBalance.callerBalance.toString()}`);
@@ -126,7 +126,7 @@ class RskTransactionHelper {
         const gasLimit = checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(gasIncrement.toString())).div(this.web3Client.utils.toBN('100'));
 
         // Sign and send raw transaction
-        return await this.withRetry(async () => {
+        return await this.withRetryOnConnectionError(async () => {
             return await this.signAndSendTransaction(
                 senderAddress, 
                 senderPrivateKey, 
@@ -149,7 +149,7 @@ class RskTransactionHelper {
      */
     async transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasPrice) {
         const privateKey = Buffer.from(senderPrivateKey, 'hex');
-        const transactionCount = await this.withRetry(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
+        const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
         const rawTx = {
             nonce: transactionCount,
             gasPrice: this.web3Client.utils.toBN(gasPrice),
@@ -174,7 +174,7 @@ class RskTransactionHelper {
             });
         };
 
-        return await this.withRetry(sendSignedTransaction);
+        return await this.withRetryOnConnectionError(sendSignedTransaction);
     }
 
     /**
@@ -203,7 +203,7 @@ class RskTransactionHelper {
      * @returns {BN} The balance of this address
      */
     async getBalance(address) {
-        const balance = await this.withRetry(async () => await this.web3Client.eth.getBalance(address));
+        const balance = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getBalance(address));
         return this.web3Client.utils.toBN(balance);
     }
 
@@ -212,7 +212,7 @@ class RskTransactionHelper {
      * @returns {BN} The current gas price
      */
     async getGasPrice() {
-        const gasPrice = await this.withRetry(async () => await this.web3Client.eth.getGasPrice());
+        const gasPrice = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getGasPrice());
         const gasPriceBn = this.web3Client.utils.toBN(gasPrice);
         return gasPriceBn.isZero() ? this.web3Client.utils.toBN('1') : gasPriceBn;
     }
@@ -224,7 +224,7 @@ class RskTransactionHelper {
      * @returns {BalanceForCallResponse} The balance information that shows if the balance is enough to invoke the method `call`
      */
     async checkBalanceForCall(call, callerAddress) {
-        const estimatedGas = await this.withRetry(async () => await call.estimateGas());
+        const estimatedGas = await this.withRetryOnConnectionError(async () => await call.estimateGas());
         const estimatedGasBn = this.web3Client.utils.toBN(estimatedGas);
         const gasPrice = await this.getGasPrice();
 
@@ -246,7 +246,7 @@ class RskTransactionHelper {
      * @returns {TransactionReceipt} The transaction receipt
      */
     async getTxReceipt(txHash) {
-        return await this.withRetry(async () => await this.web3Client.eth.getTransactionReceipt(txHash));
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionReceipt(txHash));
     }
 
     /**
@@ -296,8 +296,8 @@ class RskTransactionHelper {
         };
 
         for(let i = 0; i < amountOfBlocks; i++) {
-            const increaseTimeResult = await this.withRetry(async () => await evmIncreaseTime());
-            await this.withRetry(async () => await evmMine(increaseTimeResult));
+            const increaseTimeResult = await this.withRetryOnConnectionError(async () => await evmIncreaseTime());
+            await this.withRetryOnConnectionError(async () => await evmMine(increaseTimeResult));
         }
 
     }
@@ -315,7 +315,7 @@ class RskTransactionHelper {
      * @returns {Number} The latest block number in the blockchain
      */
     async getBlockNumber() {
-        return await this.withRetry(async () => await this.web3Client.eth.getBlockNumber());
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getBlockNumber());
     }
 
     /**
@@ -339,7 +339,7 @@ class RskTransactionHelper {
                 });
             });
         };
-        return await this.withRetry(sendNewAccountWithSeedRequest);
+        return await this.withRetryOnConnectionError(sendNewAccountWithSeedRequest);
     }
 
     /**
@@ -362,7 +362,7 @@ class RskTransactionHelper {
                 });
             });
         };
-        return await this.withRetry(sendUpdateBridgeRequest);
+        return await this.withRetryOnConnectionError(sendUpdateBridgeRequest);
     }
 
 }
