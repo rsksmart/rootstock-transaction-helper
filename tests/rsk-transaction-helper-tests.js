@@ -324,7 +324,7 @@ describe('RskTransactionHelper tests', () => {
 
         const transferFundsPromise = rskTransactionHelper.transferFunds(senderAddress, senderPrivateKey, recipient, value, expectedGasPrice);
 
-        await chai.expect(transferFundsPromise).to.eventually.be.rejectedWith(RskTransactionHelperError, 'Error on transferFunds');
+        await chai.expect(transferFundsPromise).to.eventually.be.rejectedWith('Error getting transaction count');
 
     });
 
