@@ -2,11 +2,10 @@ const RskTransactionHelper = require('../rsk-transaction-helper');
 
 (async () => {
     const config = {
-        hostUrl: process.argv[2] || 'http://localhost:4444'
+        hostUrl: process.argv[2] || 'http://localhost:4444',
     };
-
+    
     const rskTxHelper = new RskTransactionHelper(config);
-
     const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
 
     console.log('Current balance: ', (await rskTxHelper.getBalance(recipient)).toNumber());
