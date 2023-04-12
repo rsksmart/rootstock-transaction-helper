@@ -17,7 +17,7 @@ const CONNECTION_ERROR_MESSAGE = `CONNECTION ERROR: Couldn't connect to node`;
 
 class RskTransactionHelper {
     
-    constructor(rskConfig) { 
+    constructor(rskConfig) {
         this.rskConfig = Object.assign({}, DEFAULT_RSK_CONFIG, rskConfig);
         if(!this.rskConfig.hostUrl || (typeof this.rskConfig.hostUrl !== 'string')) {
             throw new Error('Invalid host provided');
@@ -36,6 +36,24 @@ class RskTransactionHelper {
         }
     }
 
+    async withRetry(fn) {
+        let attempts = 0;
+        const maxAttempts = this.rskConfig.maxAttempts;
+        while (attempts < maxAttempts) {
+            try {
+                return await fn();
+            } catch (error) {
+                // Only retrying if the error is a connection error.
+                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
+                    throw error;
+                }
+                await wait(this.rskConfig.attemptDelay);
+            }
+            attempts++;
+        }
+        throw new Error(`Failed to execute function after attempting ${maxAttempts} times}`);
+    }
+
     /**
      * Creates a transaction with the provided parameters, signs and sends it.
      * @param {string} senderAddress The `from` address in the transaction
@@ -49,42 +67,35 @@ class RskTransactionHelper {
      */
     async signAndSendTransaction(senderAddress, senderPrivateKey, gasPrice, gasLimit, destinationAddress, callData, value) {
         try {
-            let attempts = 0;
-            while (attempts < this.rskConfig.maxAttempts) {
-                try {
-                    const privateKey = Buffer.from(senderPrivateKey, 'hex');
-                    const rawTx = {
-                        nonce: this.web3Client.utils.toHex(await this.web3Client.eth.getTransactionCount(senderAddress, 'pending')),
-                        gasPrice: this.web3Client.utils.toBN(gasPrice),
-                        gasLimit: this.web3Client.utils.toBN(gasLimit),
-                        to: destinationAddress,
-                        value: this.web3Client.utils.toBN(value || '0x00'),
-                        data: callData,
-                        r: 0,
-                        s: 0,
-                        v: await this.web3Client.eth.net.getId()
-                    }
-            
-                    const tx = new Tx(rawTx);
-                    tx.sign(privateKey);
-            
-                    const serializedTx = tx.serialize();
-            
-                    const result = await new Promise((resolve, reject) => {
-                        this.web3Client.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
-                            .once('transactionHash', resolve)
-                            .once('error', reject);
-                    });
-                    return result;
-                } catch (error) {
-                    // Only retrying if the error is a connection error.
-                    if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                        throw new RskTransactionHelperException('Error on signAndSendTransaction', error);
-                    }
-                    await wait(this.rskConfig.attemptDelay);
-                }
-                attempts++;
-            } 
+            const privateKey = Buffer.from(senderPrivateKey, 'hex');
+            const transactionCount = await this.withRetry(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
+            const rawTx = {
+                nonce: transactionCount,
+                gasPrice: this.web3Client.utils.toBN(gasPrice),
+                gasLimit: this.web3Client.utils.toBN(gasLimit),
+                to: destinationAddress,
+                value: this.web3Client.utils.toBN(value || '0x00'),
+                data: callData,
+                r: 0,
+                s: 0,
+                v: await this.web3Client.eth.net.getId()
+            }
+    
+            const tx = new Tx(rawTx);
+            tx.sign(privateKey);
+    
+            const serializedTx = tx.serialize();
+    
+            const sendSignedTransaction = () => {
+                return new Promise((resolve, reject) => {
+                    this.web3Client.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
+                        .once('transactionHash', resolve)
+                        .once('error', reject);
+                });
+            };
+
+            return await this.withRetry(sendSignedTransaction);
+                    
         } 
         catch (error) {
             throw new RskTransactionHelperException('Error on signAndSendTransaction', error);
@@ -102,39 +113,29 @@ class RskTransactionHelper {
      * @returns {string} The transaction hash
      */
     async signAndSendTransactionCheckingBalance(call, senderAddress, senderPrivateKey, destinationAddress, estimatedGasPercentIncrement = 10) {
-        let attempts = 0;
-        while (attempts < this.rskConfig.maxAttempts) {
-            try {
-                // Check sender address has enough balance
-                const checkBalance = await this.checkBalanceForCall(call, senderAddress);
+        // Check sender address has enough balance
+        const checkBalance = await this.withRetry(async () => await this.checkBalanceForCall(call, senderAddress));
 
-                if (!checkBalance.isEnough) {
-                    throw new Error(`Insufficient balance. Required: ${checkBalance.requiredBalance.toString()}, current balance: ${checkBalance.callerBalance.toString()}`);
-                }
-
-                const gasIncrement = 100 + estimatedGasPercentIncrement;
-
-                // Add a 10% increment
-                const gasLimit = checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(gasIncrement.toString())).div(this.web3Client.utils.toBN('100'));
-
-                // Sign and send raw transaction
-                return this.signAndSendTransaction(
-                    senderAddress, 
-                    senderPrivateKey, 
-                    checkBalance.gasPrice, 
-                    gasLimit,
-                    destinationAddress, 
-                    call.encodeABI()
-                );
-            } catch (error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
+        if (!checkBalance.isEnough) {
+            throw new Error(`Insufficient balance. Required: ${checkBalance.requiredBalance.toString()}, current balance: ${checkBalance.callerBalance.toString()}`);
         }
+
+        const gasIncrement = 100 + estimatedGasPercentIncrement;
+
+        // Add a 10% increment
+        const gasLimit = checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(gasIncrement.toString())).div(this.web3Client.utils.toBN('100'));
+
+        // Sign and send raw transaction
+        return await this.withRetry(async () => {
+            return await this.signAndSendTransaction(
+                senderAddress, 
+                senderPrivateKey, 
+                checkBalance.gasPrice, 
+                gasLimit,
+                destinationAddress, 
+                call.encodeABI()
+            );
+        });
     }
 
     /**
@@ -151,8 +152,9 @@ class RskTransactionHelper {
         while (attempts < this.rskConfig.maxAttempts) {
             try {
                 const privateKey = Buffer.from(senderPrivateKey, 'hex');
+                const transactionCount = await this.withRetry(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
                 const rawTx = {
-                    nonce: this.web3Client.utils.toHex(await this.web3Client.eth.getTransactionCount(senderAddress, 'pending')),
+                    nonce: transactionCount,
                     gasPrice: this.web3Client.utils.toBN(gasPrice),
                     gasLimit: this.web3Client.utils.toBN(TRANSFER_GAS_COST),
                     to: destinationAddress,
@@ -167,11 +169,15 @@ class RskTransactionHelper {
         
                 const serializedTx = tx.serialize();
     
-                return new Promise((resolve, reject) => {
-                    this.web3Client.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
-                        .once('transactionHash', resolve)
-                        .once('error', reject);
-                });
+                const sendSignedTransaction = () => {
+                    return new Promise((resolve, reject) => {
+                        this.web3Client.eth.sendSignedTransaction('0x' + serializedTx.toString('hex'))
+                            .once('transactionHash', resolve)
+                            .once('error', reject);
+                    });
+                };
+    
+                return await this.withRetry(sendSignedTransaction);
             } 
             catch (error) {
                 // Only retrying if the error is a connection error.
@@ -222,20 +228,8 @@ class RskTransactionHelper {
      * @returns {BN} The balance of this address
      */
     async getBalance(address) {
-        let attempts = 0;
-        while(attempts < this.rskConfig.maxAttempts) {
-            try {
-                return this.web3Client.utils.toBN(await this.web3Client.eth.getBalance(address));
-            } catch(error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
-        }
-        throw new Error(`Error getting balance for address ${address} after attempting ${this.rskConfig.maxAttempts} times}`);
+        const balance = await this.withRetry(async () => await this.web3Client.eth.getBalance(address));
+        return this.web3Client.utils.toBN(balance);
     }
 
     /**
@@ -243,21 +237,9 @@ class RskTransactionHelper {
      * @returns {BN} The current gas price
      */
     async getGasPrice() {
-        let attempts = 0;
-        while(attempts < this.rskConfig.maxAttempts) {
-            try {
-                const gasPrice =  this.web3Client.utils.toBN(await this.web3Client.eth.getGasPrice());
-                return gasPrice.isZero() ? this.web3Client.utils.toBN('1') : gasPrice;
-            } catch(error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
-        }
-        throw new Error(`Error getting gas price after retrying ${this.rskConfig.maxAttempts} times}`);
+        const gasPrice = await this.withRetry(async () => await this.web3Client.eth.getGasPrice());
+        const gasPriceBn = this.web3Client.utils.toBN(gasPrice);
+        return gasPriceBn.isZero() ? this.web3Client.utils.toBN('1') : gasPriceBn;
     }
 
     /**
@@ -267,33 +249,20 @@ class RskTransactionHelper {
      * @returns {BalanceForCallResponse} The balance information that shows if the balance is enough to invoke the method `call`
      */
     async checkBalanceForCall(call, callerAddress) {
-        let attempts = 0;
-        while(attempts < this.rskConfig.maxAttempts) {
-            try {
-                const estimatedGas = this.web3Client.utils.toBN(await call.estimateGas());
-                const gasPrice = await this.getGasPrice();
-        
-                const requiredBalance = estimatedGas.mul(gasPrice);
-                const callerBalance = await this.getBalance(callerAddress);
-        
-                return {
-                    estimatedGas: estimatedGas,
-                    requiredBalance: requiredBalance,
-                    callerBalance: callerBalance,
-                    isEnough: callerBalance.gt(requiredBalance),
-                    gasPrice: gasPrice
-                };
+        const estimatedGas = await this.withRetry(async () => await call.estimateGas());
+        const estimatedGasBn = this.web3Client.utils.toBN(estimatedGas);
+        const gasPrice = await this.getGasPrice();
 
-            } catch(error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
-        }
-        throw new Error(`Error checking balance for call after retrying ${this.rskConfig.maxAttempts} times}`);
+        const requiredBalance = estimatedGasBn.mul(gasPrice);
+        const callerBalance = await this.getBalance(callerAddress);
+
+        return {
+            estimatedGas: estimatedGasBn,
+            requiredBalance: requiredBalance,
+            callerBalance: callerBalance,
+            isEnough: callerBalance.gt(requiredBalance),
+            gasPrice: gasPrice
+        };
     }
 
     /**
@@ -302,19 +271,7 @@ class RskTransactionHelper {
      * @returns {TransactionReceipt} The transaction receipt
      */
     async getTxReceipt(txHash) {
-        let attempts = 0;
-        while(attempts < this.rskConfig.maxAttempts) {
-            try {
-                return await this.web3Client.eth.getTransactionReceipt(txHash);
-            } catch(error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
-        }
+        return await this.withRetry(async () => await this.web3Client.eth.getTransactionReceipt(txHash));
     }
 
     /**
@@ -364,38 +321,10 @@ class RskTransactionHelper {
         };
 
         for(let i = 0; i < amountOfBlocks; i++) {
-            let evmIncreaseTimeCallAttempts = 0;
-            let increaseTimeResult;
-            while(evmIncreaseTimeCallAttempts < this.rskConfig.maxAttempts) {
-                try {
-                    increaseTimeResult = await evmIncreaseTime();
-                    break;
-                } catch(error) {
-                    // Only retrying if the error is a connection error.
-                    if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                        throw error;
-                    }
-                    await wait(this.rskConfig.attemptDelay);
-                }
-                evmIncreaseTimeCallAttempts++;
-            }
-            let evmMineCallAttempts = 0;
-            while(evmMineCallAttempts < this.rskConfig.maxAttempts) {
-                try {
-                    await evmMine(increaseTimeResult);
-                    break;
-                } catch(error) {
-                    // Only retrying if the error is a connection error.
-                    if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                        throw error;
-                    }
-                    // If the call to `evm_mine` fails, we need to decrease the counter so that the loop will try to mine again.
-                    i--;
-                    await wait(this.rskConfig.attemptDelay);
-                }
-                evmMineCallAttempts++;
-            }
+            const increaseTimeResult = await this.withRetry(async () => await evmIncreaseTime());
+            await this.withRetry(async () => await evmMine(increaseTimeResult));
         }
+
     }
 
     /**
@@ -411,19 +340,7 @@ class RskTransactionHelper {
      * @returns {Number} The latest block number in the blockchain
      */
     async getBlockNumber() {
-        let attempts = 0;
-        while(attempts < this.rskConfig.maxAttempts) {
-            try {
-                return await this.web3Client.eth.getBlockNumber();
-            } catch(error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
-        }
+        return await this.withRetry(async () => await this.web3Client.eth.getBlockNumber());
     }
 
     /**
@@ -432,32 +349,22 @@ class RskTransactionHelper {
      * @returns {Promise<string>} returns the address of the account that was just created with the seed
      */
     async newAccountWithSeed(seed) {
-        let attempts = 0;
-        while(attempts < this.rskConfig.maxAttempts) {
-            try {
-                const result = await new Promise((resolve, reject) => {
-                    this.web3Client.currentProvider.send({
-                        jsonrpc: '2.0',
-                        method: 'personal_newAccountWithSeed',
-                        params: [seed],
-                        id: new Date().getTime(),
-                    }, (error, response) => {
-                        if(error) {
-                            return reject(error);
-                        }
-                        resolve(response.result);
-                    });
+        const sendNewAccountWithSeedRequest = () => {
+            return new Promise((resolve, reject) => {
+                this.web3Client.currentProvider.send({
+                    jsonrpc: '2.0',
+                    method: 'personal_newAccountWithSeed',
+                    params: [seed],
+                    id: new Date().getTime(),
+                }, (error, response) => {
+                    if(error) {
+                        return reject(error);
+                    }
+                    resolve(response.result);
                 });
-                return result;
-            } catch(error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
-        }
+            });
+        };
+        return await this.withRetry(sendNewAccountWithSeedRequest);
     }
 
     /**
@@ -465,32 +372,22 @@ class RskTransactionHelper {
      * @returns null
      */
     async updateBridge() {
-        let attempts = 0;
-        while(attempts < this.rskConfig.maxAttempts) {
-            try {
-                const result = await new Promise((resolve, reject) => {
-                    this.web3Client.currentProvider.send({
-                        jsonrpc: '2.0',
-                        method: 'fed_updateBridge',
-                        params: [],
-                        id: new Date().getTime(),
-                    }, (error, response) => {
-                        if(error) {
-                            return reject(error);
-                        }
-                        resolve(response.result);
-                    });
+        const sendUpdateBridgeRequest = () => {
+            return new Promise((resolve, reject) => {
+                this.web3Client.currentProvider.send({
+                    jsonrpc: '2.0',
+                    method: 'fed_updateBridge',
+                    params: [],
+                    id: new Date().getTime(),
+                }, (error, response) => {
+                    if(error) {
+                        return reject(error);
+                    }
+                    resolve(response.result);
                 });
-                return result;
-            } catch(error) {
-                // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
-                    throw error;
-                }
-                await wait(this.rskConfig.attemptDelay);
-            }
-            attempts++;
-        }
+            });
+        };
+        return await this.withRetry(sendUpdateBridgeRequest);
     }
 
 }

@@ -765,7 +765,7 @@ describe('RskTransactionHelper tests', () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
             hostUrl: PROVIDER_URL,
-            attempts: 3,
+            maxAttempts: 3,
         });
 
         const web3Client = rskTransactionHelper.getClient();
@@ -784,7 +784,7 @@ describe('RskTransactionHelper tests', () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
             hostUrl: PROVIDER_URL,
-            attempts: 3,
+            maxAttempts: 3,
             attemptDelay: 100, // Using a small delay to speed up the test and avoid timeout issues.
         });
 
@@ -795,15 +795,13 @@ describe('RskTransactionHelper tests', () => {
         currentProviderSendStub.onCall(0).callsArgWith(1, null, increaseTimeResultMock); // evm_increaseTime
         currentProviderSendStub.onCall(1).callsArgWith(1, connectionErrorMock, null); // evm_mine
 
-        currentProviderSendStub.onCall(2).callsArgWith(1, null, increaseTimeResultMock); // evm_increaseTime
-        currentProviderSendStub.onCall(3).callsArgWith(1, connectionErrorMock, null); // evm_mine
+        currentProviderSendStub.onCall(2).callsArgWith(1, connectionErrorMock, null); // evm_mine
 
-        currentProviderSendStub.onCall(4).callsArgWith(1, null, increaseTimeResultMock); // evm_increaseTime
-        currentProviderSendStub.onCall(5).callsArgWith(1, null, mineResultMock); // evm_mine
+        currentProviderSendStub.onCall(3).callsArgWith(1, null, mineResultMock); // evm_mine
         
         await rskTransactionHelper.mine();
 
-        sinon.assert.callCount(currentProviderSendStub, 6, 'currentProvider.send method should be called 6 times');
+        sinon.assert.callCount(currentProviderSendStub, 4, 'currentProvider.send method should be called 6 times');
 
         const evmIncreaseTimeCall = web3Client.currentProvider.send.getCall(0);
         const evmMineCall = web3Client.currentProvider.send.getCall(1);
