@@ -51,7 +51,7 @@ class RskTransactionHelper {
             }
             attempts++;
         }
-        throw new Error(`Failed to execute function after attempting ${maxAttempts} times}`);
+        throw new Error(`Failed to execute function after attempting ${maxAttempts} time(s)`);
     }
 
     /**
