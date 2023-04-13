@@ -365,6 +365,40 @@ class RskTransactionHelper {
         return await this.withRetryOnConnectionError(sendUpdateBridgeRequest);
     }
 
+    /**
+     * @param {number | string} blockNumberHashOrTag, block number, block hash or 'latest' tag. Defaults to 'latest'
+     * @returns {Block}
+     */
+    async getBlock(blockNumberHashOrTag = 'latest') {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getBlock(blockNumberHashOrTag));
+    }
+
+    /**
+     * @param {string} accountPrivateKey to be imported
+     * @returns {string} address of the imported account
+     */
+    async importAccount(accountPrivateKey) {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.importRawKey(accountPrivateKey, ''));
+    }
+
+    /**
+     * @param {string} accountAddress to unlock
+     * @returns {boolean} true if unlocked successfully, false otherwise
+     */
+    async unlockAccount(accountAddress) {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.unlockAccount(accountAddress, ''));
+    }
+
+    /**
+     * 
+     * @param {string} accountPrivateKey to be imported and unlocked
+     * @returns {boolean} true if imported and unlocked successfully, false otherwise
+     */
+    async importAndUnlockAccount(accountPrivateKey) {
+        const accountAddress = await this.importAccount(accountPrivateKey);
+        return await this.unlockAccount(accountAddress);
+    }
+
 }
 
 module.exports = RskTransactionHelper;
