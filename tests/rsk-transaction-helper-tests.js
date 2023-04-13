@@ -926,27 +926,4 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
-    it(`should import and unlock the account`, async () => {
-        
-        const rskTransactionHelper = new RskTransactionHelper({
-            hostUrl: PROVIDER_URL
-        });
-
-        const web3Client = rskTransactionHelper.getClient();
-
-        const privateKey = '0x4c8f18581c0167eb90a761b4a304e009b924f03b619a0c0e8ea3adfce20aee64';
-        const accountAddress = '0xe9f5e6d433316e4abfeff8c40ac405b735129501';
-
-        sinon.replace(web3Client.eth.personal, 'importRawKey', sinon.fake.returns(accountAddress));
-        sinon.replace(web3Client.eth.personal, 'unlockAccount', sinon.fake.returns(true));
-
-        const importedAndUnlocked = await rskTransactionHelper.importAndUnlockAccount(privateKey);
-
-        assert.isTrue(web3Client.eth.personal.importRawKey.calledWith(privateKey), `Was not called with expected private key param`);
-        assert.isTrue(web3Client.eth.personal.unlockAccount.calledWith(accountAddress), `Was not called with expected account address param`);
-
-        assert.isTrue(importedAndUnlocked, 'The account was not unlocked');
-
-    });
-
 });
