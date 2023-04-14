@@ -366,7 +366,7 @@ class RskTransactionHelper {
     }
 
     /**
-     * @param {number | string} blockNumberHashOrTag, block number, block hash or 'latest' tag. Defaults to 'latest'
+     * @param {number | string} blockHashOrBlockNumber, block number or block hash. Defaults to 'latest'
      * @returns {Block}
      */
     async getBlock(blockHashOrBlockNumber = 'latest') {
