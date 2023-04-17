@@ -389,6 +389,10 @@ class RskTransactionHelper {
         return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.unlockAccount(accountAddress, ''));
     }
 
+    async sendTransaction(tx) {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.sendTransaction(tx));
+    }
+
 }
 
 module.exports = RskTransactionHelper;

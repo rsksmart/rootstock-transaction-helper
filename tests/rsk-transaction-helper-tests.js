@@ -926,4 +926,32 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should send a transaction and return the transaction hash', async () => {
+            
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const transactionHash = '0x053a9e84bd5eae90834da13fa25af17307b405d6eb3f3dd34a31450a7067c76b';
+
+        const transaction = {
+            from: '0xe9f5e6d433316e4abfeff8c40ac405b735129501',
+            to: '0x4c8f18581c0167eb90a761b4a304e009b924f03b619a0c0e8ea3adfce20aee64',
+            value: 1000000000000000000,
+            gas: 21000,
+            gasPrice: 100000000000,
+        };
+
+        sinon.replace(web3Client.eth, 'sendTransaction', sinon.fake.returns(transactionHash));
+
+        const actualTransactionHash = await rskTransactionHelper.sendTransaction(transaction);
+
+        assert.isTrue(web3Client.eth.sendTransaction.calledWith(transaction), `Was not called with expected transaction param`);
+
+        assert.equal(transactionHash, actualTransactionHash, 'The transaction hash is not as expected');
+
+    });
+
 });
