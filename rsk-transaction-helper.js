@@ -51,7 +51,7 @@ class RskTransactionHelper {
             }
             attempts++;
         }
-        throw new Error(`Failed to execute function after attempting ${maxAttempts} times}`);
+        throw new Error(`Failed to execute function after attempting ${maxAttempts} time(s)`);
     }
 
     /**
@@ -363,6 +363,39 @@ class RskTransactionHelper {
             });
         };
         return await this.withRetryOnConnectionError(sendUpdateBridgeRequest);
+    }
+
+    /**
+     * @param {number | string} blockHashOrBlockNumber, block number or block hash. Defaults to 'latest'
+     * @returns {Block}
+     */
+    async getBlock(blockHashOrBlockNumber = 'latest') {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getBlock(blockHashOrBlockNumber));
+    }
+
+    /**
+     * @param {string} accountPrivateKey to be imported
+     * @returns {string} address of the imported account
+     */
+    async importAccount(accountPrivateKey) {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.importRawKey(accountPrivateKey, ''));
+    }
+
+    /**
+     * @param {string} accountAddress to unlock
+     * @returns {boolean} true if unlocked successfully, false otherwise
+     */
+    async unlockAccount(accountAddress) {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.unlockAccount(accountAddress, ''));
+    }
+
+    /**
+     * Sends a transaction to the blockchain using the provided `txConfig`
+     * @param {TransactionConfig} txConfig
+     * @returns {string} The transaction hash
+     */
+    async sendTransaction(txConfig) {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.sendTransaction(txConfig));
     }
 
 }

@@ -818,4 +818,140 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it(`should return the block and be called with the 'latest' param if none specified`, async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const expectedBlock = { number: 5 };
+
+        sinon.replace(web3Client.eth, 'getBlock', sinon.fake.returns(expectedBlock));
+
+        const block = await rskTransactionHelper.getBlock();
+
+        assert.isTrue(web3Client.eth.getBlock.calledWith('latest'), 'Was not called with expected latest param');
+
+        assert.equal(expectedBlock, block, 'The block is not as expected');
+
+    });
+
+    it(`should return the block and be called with the specified block number`, async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const blockNumber = 5;
+
+        const expectedBlock = { number: blockNumber };
+
+        sinon.replace(web3Client.eth, 'getBlock', sinon.fake.returns(expectedBlock));
+
+        const block = await rskTransactionHelper.getBlock(blockNumber);
+
+        assert.isTrue(web3Client.eth.getBlock.calledWith(blockNumber), `Was not called with expected block number param`);
+
+        assert.equal(expectedBlock, block, 'The block is not as expected');
+
+    });
+
+    it(`should return the block and be called with the specified block hash`, async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const blockHash = '0x053a9e84bd5eae90834da13fa25af17307b405d6eb3f3dd34a31450a7067c76b';
+
+        const expectedBlock = {
+            hash: blockHash,
+            number: 5,
+        };
+
+        sinon.replace(web3Client.eth, 'getBlock', sinon.fake.returns(expectedBlock));
+
+        const block = await rskTransactionHelper.getBlock(blockHash);
+
+        assert.isTrue(web3Client.eth.getBlock.calledWith(blockHash), `Was not called with expected block hash param`);
+
+        assert.equal(expectedBlock, block, 'The block is not as expected');
+
+    });
+
+    it(`should import account with the provided private key and return the address`, async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const privateKey = '0x4c8f18581c0167eb90a761b4a304e009b924f03b619a0c0e8ea3adfce20aee64';
+        const expectedAddress = '0xe9f5e6d433316e4abfeff8c40ac405b735129501';
+
+        sinon.replace(web3Client.eth.personal, 'importRawKey', sinon.fake.returns(expectedAddress));
+
+        const actualAddress = await rskTransactionHelper.importAccount(privateKey);
+
+        assert.isTrue(web3Client.eth.personal.importRawKey.calledWith(privateKey), `Was not called with expected private key param`);
+
+        assert.equal(expectedAddress, actualAddress, 'The address is not as expected');
+
+    });
+
+    it(`should unlock the account`, async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const accountAddress = '0xe9f5e6d433316e4abfeff8c40ac405b735129501';
+
+        sinon.replace(web3Client.eth.personal, 'unlockAccount', sinon.fake.returns(true));
+
+        const unlocked = await rskTransactionHelper.unlockAccount(accountAddress);
+
+        assert.isTrue(web3Client.eth.personal.unlockAccount.calledWith(accountAddress), `Was not called with expected account address param`);
+
+        assert.isTrue(unlocked, 'The account was not unlocked');
+
+    });
+
+    it('should send a transaction and return the transaction hash', async () => {
+            
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const web3Client = rskTransactionHelper.getClient();
+
+        const transactionHash = '0x053a9e84bd5eae90834da13fa25af17307b405d6eb3f3dd34a31450a7067c76b';
+
+        const transaction = {
+            from: '0xe9f5e6d433316e4abfeff8c40ac405b735129501',
+            to: '0x4c8f18581c0167eb90a761b4a304e009b924f03b619a0c0e8ea3adfce20aee64',
+            value: 1000000000000000000,
+            gas: 21000,
+            gasPrice: 100000000000,
+        };
+
+        sinon.replace(web3Client.eth, 'sendTransaction', sinon.fake.returns(transactionHash));
+
+        const actualTransactionHash = await rskTransactionHelper.sendTransaction(transaction);
+
+        assert.isTrue(web3Client.eth.sendTransaction.calledWith(transaction), `Was not called with expected transaction param`);
+
+        assert.equal(transactionHash, actualTransactionHash, 'The transaction hash is not as expected');
+
+    });
+
 });
