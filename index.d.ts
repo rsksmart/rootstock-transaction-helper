@@ -1,5 +1,5 @@
 import Web3 from 'web3';
-import { TransactionReceipt } from 'web3-core';
+import { TransactionReceipt, TransactionConfig } from 'web3-core';
 import { ContractSendMethod } from 'web3-eth-contract';
 
 import BN from 'bn.js';
@@ -26,4 +26,5 @@ export interface RskTransactionHelper {
     signAndSendTransactionCheckingBalance(call: ContractSendMethod, senderAddress: string, senderPrivateKey: string, destinationAddress: string, estimatedGasPercentIncrement: number): Promise<string>;
     checkBalanceForCall(call: ContractSendMethod, callerAddress: string): Promise<BalanceForCallResponse>;
     getBlockNumber(): Promise<number>;
+    sendTransaction(txConfig: TransactionConfig): Promise<string>;
 }

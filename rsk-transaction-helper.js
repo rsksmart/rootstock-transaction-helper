@@ -389,8 +389,13 @@ class RskTransactionHelper {
         return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.unlockAccount(accountAddress, ''));
     }
 
-    async sendTransaction(tx) {
-        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.sendTransaction(tx));
+    /**
+     * Sends a transaction to the blockchain using the provided `txConfig`
+     * @param {TransactionConfig} txConfig
+     * @returns {string} The transaction hash
+     */
+    async sendTransaction(txConfig) {
+        return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.sendTransaction(txConfig));
     }
 
 }
