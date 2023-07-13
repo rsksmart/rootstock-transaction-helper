@@ -27,7 +27,7 @@ class RskTransactionHelper {
                 throw new Error('Invalid maxAttempts provided. Must be greater than 0.');
             }
             let host = this.rskConfig.hostUrl;
-            if(!host.startsWith('http')){
+            if(!host.startsWith('http://') && !host.startsWith('https://')){
                 host = `http://${host}`;
             }
             this.web3Client = new Web3(host);
@@ -66,6 +66,9 @@ class RskTransactionHelper {
      * @returns {string} The transaction hash
      */
     async signAndSendTransaction(senderAddress, senderPrivateKey, gasPrice, gasLimit, destinationAddress, callData, value) {
+        if(!this.rskConfig.chainId) {
+            throw new Error('chainId not provided');
+        }
         try {
             const privateKey = Buffer.from(senderPrivateKey, 'hex');
             const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
@@ -78,7 +81,7 @@ class RskTransactionHelper {
                 data: callData,
                 r: 0,
                 s: 0,
-                v: await this.web3Client.eth.net.getId()
+                v: this.rskConfig.chainId
             }
     
             const tx = new Tx(rawTx);
@@ -148,6 +151,9 @@ class RskTransactionHelper {
      * @returns {string} The transaction hash
      */
     async transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasPrice) {
+        if(!this.rskConfig.chainId) {
+            throw new Error('chainId not provided');
+        }
         const privateKey = Buffer.from(senderPrivateKey, 'hex');
         const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
         const rawTx = {
@@ -158,7 +164,7 @@ class RskTransactionHelper {
             value: this.web3Client.utils.toBN(value || '0x00'),
             r: 0,
             s: 0,
-            v: await this.web3Client.eth.net.getId()
+            v: this.rskConfig.chainId
         }
 
         const tx = new Tx(rawTx);

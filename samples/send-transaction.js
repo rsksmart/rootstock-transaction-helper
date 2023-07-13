@@ -3,6 +3,7 @@ const RskTransactionHelper = require('../rsk-transaction-helper');
 (async () => {
     const config = {
         hostUrl: process.argv[2] || 'http://localhost:4444',
+        chainId: process.argv[3],
     };
     
     const rskTxHelper = new RskTransactionHelper(config);

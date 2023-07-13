@@ -13,7 +13,7 @@ export type BalanceForCallResponse = {
 };
 
 export interface RskTransactionHelper {
-    rskConfig: {};
+    rskConfig: {hostUrl: string, chainId: number};
     web3Client: Web3;
     mine(amountOfBlocks?: number): Promise<void>;
     getClient(): Web3;

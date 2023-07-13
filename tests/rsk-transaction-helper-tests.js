@@ -12,9 +12,15 @@ const EventEmitter = require('events').EventEmitter;
 // No actual call to this host is being made, but it's needed for the `currentProvider` object to be created.
 const PROVIDER_URL = 'http://localhost:4444';
 
+const TEST_SENDER_ADDRESS = '0x0671fcbf6c14b08a18cb8db6e5345efaecb907c4';
+const TEST_RECIPIENT_ADDRESS = '0xcfc833ca1ebb1d4fe19230585a601d0b392eeed7';
+const TEST_TX_HASH = '0x49ea2e86436430232d69e3ef21ae08d111a4f23d666f8f3e8735b1ef5bda87b0';
+const TEST_PRIVATE_KEY = 'b7ddc1c73a0f94479ec44c814d57aec904865dfa1e3487ec8c648ee7fb2daf3c';
+const TEST_SERIALIZED_TX_HEX = 'f865058203e882520894cfc833ca1ebb1d4fe19230585a601d0b392eeed7843b9aca00801ba0010d207e7f109c1ebd9b934a3c5dc2c126280050b3c4902a7f2a0b0628e87596a01bbbd3ec2e80dc9000fa5738c3458b3ff58701757c52c24c2994ed2fde547a69';
+
 const increaseTimeResultMock = { jsonrpc: '2.0', id: 1671590107425, result: '0x1' };
 const mineResultMock = { jsonrpc: '2.0', id: 1671590107426, result: null };
-const newAccountWithSeedMock = { jsonrpc: '2.0', id: 1671590107426, result: '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826' };
+const newAccountWithSeedMock = { jsonrpc: '2.0', id: 1671590107426, result: TEST_SENDER_ADDRESS };
 const updateBridgeMock = { jsonrpc: '2.0', id: 1671590107427, result: null };
 
 const TRANSFER_GAS_COST = 21000;
@@ -269,47 +275,60 @@ describe('RskTransactionHelper tests', () => {
     it('should transfer funds', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
-            hostUrl: PROVIDER_URL
+            hostUrl: PROVIDER_URL,
+            chainId: 31
         });
 
         const web3Client = rskTransactionHelper.getClient();
 
         const expectedGasPrice = 1000;
-        const expectedTxHash = '0x5729dbdf533d580d6e3510d38b704e4295b5523d8f9e0d13b601e2ba04579364';
 
         const emitter = new EventEmitter();
 
         sinon.replace(web3Client.eth, 'sendSignedTransaction', sinon.fake.returns(emitter));
         sinon.replace(web3Client.eth, 'getTransactionCount', sinon.fake.returns(5));
-        sinon.replace(web3Client.eth.net, 'getId', sinon.fake.returns(33));
-        const serializedTxHex = '0xf865058203e882520894e6dae024a76a42f13e6b92241d3802b465e55c1a843b9aca00801ca07d7ef090470ae6ac7e18ea9f1d298da325d53b13b4c342577f358868cf17a68ca05d1305ccd7940ab13bcc84144480a5821a4d677a4f2f52af310ee940bc579d64';
 
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
+        const senderPrivateKey = 'b7ddc1c73a0f94479ec44c814d57aec904865dfa1e3487ec8c648ee7fb2daf3c';
         const value = 1000000000;
 
-        const promise = rskTransactionHelper.transferFunds(senderAddress, senderPrivateKey, recipient, value, expectedGasPrice);
+        const promise = rskTransactionHelper.transferFunds(TEST_SENDER_ADDRESS, senderPrivateKey, TEST_RECIPIENT_ADDRESS, value, expectedGasPrice);
 
         // Deferring the call and allowing enough time for `emitter.once('transactionHash')` to be invoked before emitting.
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // `eventWasEmitted` will be true if a call to `emitter.once('transactionHash')` was done.
-        const eventWasEmitted = emitter.emit('transactionHash', expectedTxHash);
+        const eventWasEmitted = emitter.emit('transactionHash', TEST_TX_HASH);
         assert.isTrue(eventWasEmitted, '"transactionHash" event was not emitted');
 
         const result = await promise;
 
-        assert.equal(result, expectedTxHash, "Transaction hash is not as expected");
+        assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
 
-        assert.isTrue(web3Client.eth.sendSignedTransaction.calledWithMatch(serializedTxHex), 'sendSignedTransaction was not called with expected data');
+        assert.isTrue(web3Client.eth.sendSignedTransaction.calledWithMatch(TEST_SERIALIZED_TX_HEX), 'sendSignedTransaction was not called with expected data');
+
+    });
+
+    it('should fail to transfer funds when chainId is not provided', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const expectedGasPrice = 1000;
+
+        const value = 1000000000;
+
+        await chai.expect(
+            rskTransactionHelper.transferFunds(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, value, expectedGasPrice)
+        ).to.eventually.be.rejectedWith('chainId not provided');
 
     });
 
     it('should throw exception while trying to transfer funds', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
-            hostUrl: PROVIDER_URL
+            hostUrl: PROVIDER_URL,
+            chainId: 31
         });
 
         const web3Client = rskTransactionHelper.getClient();
@@ -317,12 +336,9 @@ describe('RskTransactionHelper tests', () => {
         sinon.replace(web3Client.eth, 'getTransactionCount', sinon.fake.rejects('Error getting transaction count'));
 
         const expectedGasPrice = 1000;
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
         const value = 1000000000;
 
-        const transferFundsPromise = rskTransactionHelper.transferFunds(senderAddress, senderPrivateKey, recipient, value, expectedGasPrice);
+        const transferFundsPromise = rskTransactionHelper.transferFunds(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, value, expectedGasPrice);
 
         await chai.expect(transferFundsPromise).to.eventually.be.rejectedWith('Error getting transaction count');
 
@@ -331,14 +347,14 @@ describe('RskTransactionHelper tests', () => {
     it('should transfer funds checking balance', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
-            hostUrl: PROVIDER_URL
+            hostUrl: PROVIDER_URL,
+            chainId: 31
         });
 
         const web3Client = rskTransactionHelper.getClient();
 
         const expectedBalance = '999999999999999999997958000000';
         const expectedGasPrice = '1000';
-        const expectedTxHash = '0x5729dbdf533d580d6e3510d38b704e4295b5523d8f9e0d13b601e2ba04579364';
 
         const emitter = new EventEmitter();
 
@@ -346,42 +362,37 @@ describe('RskTransactionHelper tests', () => {
         sinon.replace(web3Client.eth, 'getBalance', sinon.fake.returns(expectedBalance));
         sinon.replace(web3Client.eth, 'getGasPrice', sinon.fake.returns(expectedGasPrice));
         sinon.replace(web3Client.eth, 'getTransactionCount', sinon.fake.returns(5));
-        sinon.replace(web3Client.eth.net, 'getId', sinon.fake.returns(33));
-        const serializedTxHex = '0xf865058203e882520894e6dae024a76a42f13e6b92241d3802b465e55c1a843b9aca00801ca07d7ef090470ae6ac7e18ea9f1d298da325d53b13b4c342577f358868cf17a68ca05d1305ccd7940ab13bcc84144480a5821a4d677a4f2f52af310ee940bc579d64';
 
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
         const value = 1000000000;
 
-        const promise = rskTransactionHelper.transferFundsCheckingBalance(senderAddress, senderPrivateKey, recipient, value);
+        const promise = rskTransactionHelper.transferFundsCheckingBalance(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, value);
 
         // Deferring the call and allowing enough time for `emitter.once('transactionHash')` to be invoked before emitting.
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // `eventWasEmitted` will be true if a call to `emitter.once('transactionHash')` was done.
-        const eventWasEmitted = emitter.emit('transactionHash', expectedTxHash);
+        const eventWasEmitted = emitter.emit('transactionHash', TEST_TX_HASH);
         assert.isTrue(eventWasEmitted, '"transactionHash" event was not emitted');
 
         const result = await promise;
 
-        assert.equal(result, expectedTxHash, "Transaction hash is not as expected");
+        assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
 
-        assert.isTrue(web3Client.eth.sendSignedTransaction.calledWithMatch(serializedTxHex), 'sendSignedTransaction was not called with expected data');
+        assert.isTrue(web3Client.eth.sendSignedTransaction.calledWithMatch(TEST_SERIALIZED_TX_HEX), 'sendSignedTransaction was not called with expected data');
 
     });
 
     it('should sign and send transaction', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
-            hostUrl: PROVIDER_URL
+            hostUrl: PROVIDER_URL,
+            chainId: 31
         });
 
         const web3Client = rskTransactionHelper.getClient();
 
         const expectedGasPrice = 1000;
         const expectedGasLimit = TRANSFER_GAS_COST;
-        const expectedTxHash = '0x5729dbdf533d580d6e3510d38b704e4295b5523d8f9e0d13b601e2ba04579364';
 
         const emitter = new EventEmitter();
 
@@ -391,28 +402,46 @@ describe('RskTransactionHelper tests', () => {
 
         sinon.replace(web3Client.eth, 'sendSignedTransaction', sinon.fake.returns(emitter));
         sinon.replace(web3Client.eth, 'getTransactionCount', sinon.fake.returns(5));
-        sinon.replace(web3Client.eth.net, 'getId', sinon.fake.returns(33));
-        const serializedTxHex = '0xf865058203e882520894e6dae024a76a42f13e6b92241d3802b465e55c1a843b9aca00801ca07d7ef090470ae6ac7e18ea9f1d298da325d53b13b4c342577f358868cf17a68ca05d1305ccd7940ab13bcc84144480a5821a4d677a4f2f52af310ee940bc579d64';
 
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
         const value = 1000000000;
 
-        const promise = rskTransactionHelper.signAndSendTransaction(senderAddress, senderPrivateKey, expectedGasPrice, expectedGasLimit, recipient, '0x', value);
+        const promise = rskTransactionHelper.signAndSendTransaction(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, expectedGasPrice, expectedGasLimit, TEST_RECIPIENT_ADDRESS, '0x', value);
 
         // Deferring the call and allowing enough time for `emitter.once('transactionHash')` to be invoked before emitting.
         await new Promise(resolve => setTimeout(resolve, 500));
 
         // `eventWasEmitted` will be true if a call to `emitter.once('transactionHash')` was done.
-        const eventWasEmitted = emitter.emit('transactionHash', expectedTxHash);
+        const eventWasEmitted = emitter.emit('transactionHash', TEST_TX_HASH);
         assert.isTrue(eventWasEmitted, '"transactionHash" event was not emitted');
 
         const result = await promise;
 
-        assert.equal(result, expectedTxHash, "Transaction hash is not as expected");
+        assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
 
-        assert.isTrue(web3Client.eth.sendSignedTransaction.calledWithMatch(serializedTxHex), 'sendSignedTransaction was not called with expected data');
+        assert.isTrue(web3Client.eth.sendSignedTransaction.calledWithMatch(TEST_SERIALIZED_TX_HEX), 'sendSignedTransaction was not called with expected data');
+
+    });
+
+    it('should fail to sign and send transaction if chainId is not provided', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+        });
+
+        const expectedGasPrice = 1000;
+        const expectedGasLimit = TRANSFER_GAS_COST;
+   
+        const emitter = new EventEmitter();
+
+        const fakeSendSignedTransaction = sinon.fake;
+
+        fakeSendSignedTransaction.returns(emitter);
+
+        const value = 1000000000;
+
+        await chai.expect(
+            rskTransactionHelper.signAndSendTransaction(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, expectedGasPrice, expectedGasLimit, TEST_RECIPIENT_ADDRESS, '0x', value)
+        ).to.eventually.be.rejectedWith('chainId not provided');
 
     });
 
@@ -500,9 +529,6 @@ describe('RskTransactionHelper tests', () => {
         const expectedGasPrice = 1000;
         const expectedEstimatedGas = 1234;
         const expectedRequiredBalance = expectedGasPrice * expectedEstimatedGas;
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
         const bridgeContract = new web3Client.eth.Contract(minimalBridgeAbi, bridgeAddress);
         const expectedGasLimit = web3Client.utils.toBN(1357);
 
@@ -523,9 +549,9 @@ describe('RskTransactionHelper tests', () => {
 
         const call = bridgeContract.methods.getStateForDebugging();
 
-        await rskTransactionHelper.signAndSendTransactionCheckingBalance(call, senderAddress, senderPrivateKey, recipient);
+        await rskTransactionHelper.signAndSendTransactionCheckingBalance(call, TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS);
 
-        const calledWithExpectedParameters = rskTransactionHelper.signAndSendTransaction.calledWith(senderAddress, senderPrivateKey, checkBalanceForCallResponseMock.gasPrice, expectedGasLimit, recipient, getStateForDebuggingSelector);
+        const calledWithExpectedParameters = rskTransactionHelper.signAndSendTransaction.calledWith(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, checkBalanceForCallResponseMock.gasPrice, expectedGasLimit, TEST_RECIPIENT_ADDRESS, getStateForDebuggingSelector);
 
         assert.isTrue(calledWithExpectedParameters, '`signAndSendTransaction` is called with expected parameters');
 
@@ -539,11 +565,9 @@ describe('RskTransactionHelper tests', () => {
 
         const web3Client = rskTransactionHelper.getClient();
 
-        const expectedTxHash = '0x5729dbdf533d580d6e3510d38b704e4295b5523d8f9e0d13b601e2ba04579364';
-
         const expectedTxReceipt = {
             status: true,
-            transactionHash: expectedTxHash,
+            transactionHash: TEST_TX_HASH,
             transactionIndex: 1,
             blockHash: '',
             blockNumber: 1,
@@ -558,9 +582,9 @@ describe('RskTransactionHelper tests', () => {
 
         sinon.replace(web3Client.eth, 'getTransactionReceipt', sinon.fake.returns(expectedTxReceipt));
 
-        const txReceipt = await rskTransactionHelper.getTxReceipt(expectedTxHash);
+        const txReceipt = await rskTransactionHelper.getTxReceipt(TEST_TX_HASH);
 
-        assert.isTrue(web3Client.eth.getTransactionReceipt.calledWith(expectedTxHash), 'Was not called with expected txHash');
+        assert.isTrue(web3Client.eth.getTransactionReceipt.calledWith(TEST_TX_HASH), 'Was not called with expected txHash');
         
         assert.equal(txReceipt, expectedTxReceipt, 'tx receipts should be the same');
 
@@ -591,21 +615,19 @@ describe('RskTransactionHelper tests', () => {
     it('should throw an error while trying to sign and send transaction', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
-            hostUrl: PROVIDER_URL
+            hostUrl: PROVIDER_URL,
+            chainId: 31
         });
 
         const web3Client = rskTransactionHelper.getClient();
 
         sinon.replace(web3Client.eth, 'getTransactionCount', sinon.fake.rejects('Error getting transaction count'));
 
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
         const value = 1000000000;
         const expectedGasPrice = 1000;
         const expectedGasLimit = TRANSFER_GAS_COST;
 
-        const signAndSendTransactionPromise = rskTransactionHelper.signAndSendTransaction(senderAddress, senderPrivateKey, expectedGasPrice, expectedGasLimit, recipient, '0x', value);
+        const signAndSendTransactionPromise = rskTransactionHelper.signAndSendTransaction(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, expectedGasPrice, expectedGasLimit, TEST_RECIPIENT_ADDRESS, '0x', value);
 
         await chai.expect(signAndSendTransactionPromise).to.eventually.be.rejectedWith(RskTransactionHelperError, 'Error on signAndSendTransaction');
 
@@ -623,10 +645,6 @@ describe('RskTransactionHelper tests', () => {
         const expectedGasPrice = 1000;
         const expectedEstimatedGas = 1234;
         const expectedRequiredBalance = expectedGasPrice * expectedEstimatedGas;
-        
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
 
         const checkBalanceForCallResponseMock = {
             estimatedGas: web3Client.utils.toBN(expectedEstimatedGas),
@@ -638,7 +656,7 @@ describe('RskTransactionHelper tests', () => {
 
         sinon.replace(rskTransactionHelper, 'checkBalanceForCall', sinon.fake.returns(checkBalanceForCallResponseMock));
        
-        const signAndSendTransactionCheckingBalancePromise = rskTransactionHelper.signAndSendTransactionCheckingBalance({}, senderAddress, senderPrivateKey, recipient);
+        const signAndSendTransactionCheckingBalancePromise = rskTransactionHelper.signAndSendTransactionCheckingBalance({}, TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS);
 
         await chai.expect(signAndSendTransactionCheckingBalancePromise).to.eventually.be.rejectedWith(Error, 'Insufficient balance. Required: 1234000, current balance: 9999999');
 
@@ -658,12 +676,9 @@ describe('RskTransactionHelper tests', () => {
         sinon.replace(web3Client.eth, 'getBalance', sinon.fake.returns(expectedBalance));
         sinon.replace(web3Client.eth, 'getGasPrice', sinon.fake.returns(expectedGasPrice));
 
-        const senderAddress = '0xcd2a3d9f938e13cd947ec05abc7fe734df8dd826';
-        const senderPrivateKey = 'c85ef7d79691fe79573b1a7064c19c1a9819ebdbd1faaab1a8ec92344438aaf4';
-        const recipient = '0xe6dae024a76a42f13e6b92241d3802b465e55c1a';
         const value = 1000000000;
 
-        const transferFundsCheckingBalancePromise = rskTransactionHelper.transferFundsCheckingBalance(senderAddress, senderPrivateKey, recipient, value);
+        const transferFundsCheckingBalancePromise = rskTransactionHelper.transferFundsCheckingBalance(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, value);
 
         await chai.expect(transferFundsCheckingBalancePromise).to.eventually.be.rejectedWith(Error, 'Insufficient balance. Required: 1021000000, current balance: 1');
 
