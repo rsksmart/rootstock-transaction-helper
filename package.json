@@ -1,5 +1,5 @@
 {
-  "name": "rsk-transaction-helper",
+  "name": "rootstock-transaction-helper",
   "version": "4.0.0",
   "description": "Utilitary library to send transactions on Rootstock using web3 and ethereum-js",
   "main": "index.js",

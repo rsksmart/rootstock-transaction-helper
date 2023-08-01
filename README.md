@@ -1,8 +1,8 @@
 <img src="./rootstock_logo.png" alt="Rootstock" />
 
-# rsk-transaction-helper
-![Github CI/CD](https://github.com/rsksmart/rsk-transaction-helper/actions/workflows/workflow.yml/badge.svg)
-[![CodeQL](https://github.com/rsksmart/rsk-transaction-helper/workflows/CodeQL/badge.svg)](https://github.com/rsksmart/rsk-transaction-helper/actions?query=workflow%3ACodeQL)
+# rootstock-transaction-helper
+![Github CI/CD](https://github.com/rsksmart/rootstock-transaction-helper/actions/workflows/workflow.yml/badge.svg)
+[![CodeQL](https://github.com/rsksmart/rootstock-transaction-helper/workflows/CodeQL/badge.svg)](https://github.com/rsksmart/rootstock-transaction-helper/actions?query=workflow%3ACodeQL)
 
 Utility library to send transactions on RSK using Web3 and Ethereum-js 
 
