@@ -23,3 +23,7 @@ For example:
 ## Running unit tests
 
 > npm run test
+
+## Contributing
+
+Any comments or suggestions feel free to contribute or reach out at our [open slack](https://dev.rootstock.io//slack).
