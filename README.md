@@ -4,7 +4,7 @@
 ![Github CI/CD](https://github.com/rsksmart/rootstock-transaction-helper/actions/workflows/workflow.yml/badge.svg)
 [![CodeQL](https://github.com/rsksmart/rootstock-transaction-helper/workflows/CodeQL/badge.svg)](https://github.com/rsksmart/rootstock-transaction-helper/actions?query=workflow%3ACodeQL)
 
-Utility library to send transactions on RSK using Web3 and Ethereum-js 
+Utility library to send transactions on Rootstock using web3 and ethereum-js 
 
 ## Running a sample
 
