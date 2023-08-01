@@ -1,5 +1,5 @@
 {
-  "name": "rootstock-transaction-helper",
+  "name": "@rsksmart/rootstock-transaction-helper",
   "version": "4.0.0",
   "description": "Utilitary library to send transactions on Rootstock using web3 and ethereum-js",
   "main": "index.js",
@@ -10,12 +10,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/rsksmart/rsk-transaction-helper.git"
+    "url": "https://github.com/rsksmart/rootstock-transaction-helper.git"
   },
   "bugs": {
-    "url": "https://github.com/rsksmart/rsk-transaction-helper/issues"
+    "url": "https://github.com/rsksmart/rootstock-transaction-helper/issues"
   },
-  "homepage": "https://github.com/rsksmart/rsk-transaction-helper#readme",
+  "homepage": "https://github.com/rsksmart/rootstock-transaction-helper#readme",
   "author": "",
   "license": "ISC",
   "keywords": [
