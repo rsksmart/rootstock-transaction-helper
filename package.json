@@ -1,7 +1,7 @@
 {
   "name": "rsk-transaction-helper",
-  "version": "3.2.0",
-  "description": "Utilitary library to send transactions on RSK using Web3 and Ethereum-js",
+  "version": "4.0.0",
+  "description": "Utilitary library to send transactions on Rootstock using web3 and ethereum-js",
   "main": "index.js",
   "scripts": {
     "test": "mocha ./tests",
