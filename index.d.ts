@@ -13,8 +13,8 @@ export type BalanceForCallResponse = {
 };
 
 export type GasOptions = {
-    gasPrice: BN;
-    gasLimit: BN;
+    gasPrice: number;
+    gasLimit: number;
 };
 
 export interface RskTransactionHelper {
