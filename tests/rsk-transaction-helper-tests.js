@@ -291,7 +291,7 @@ describe('RskTransactionHelper tests', () => {
         const senderPrivateKey = 'b7ddc1c73a0f94479ec44c814d57aec904865dfa1e3487ec8c648ee7fb2daf3c';
         const value = 1000000000;
 
-        const promise = rskTransactionHelper.transferFunds(TEST_SENDER_ADDRESS, senderPrivateKey, TEST_RECIPIENT_ADDRESS, value, expectedGasPrice);
+        const promise = rskTransactionHelper.transferFunds(TEST_SENDER_ADDRESS, senderPrivateKey, TEST_RECIPIENT_ADDRESS, value, { gasPrice: expectedGasPrice });
 
         // Deferring the call and allowing enough time for `emitter.once('transactionHash')` to be invoked before emitting.
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -405,7 +405,10 @@ describe('RskTransactionHelper tests', () => {
 
         const value = 1000000000;
 
-        const promise = rskTransactionHelper.signAndSendTransaction(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, expectedGasPrice, expectedGasLimit, TEST_RECIPIENT_ADDRESS, '0x', value);
+        const promise = rskTransactionHelper.signAndSendTransaction(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, '0x', value, {
+            gasPrice: expectedGasPrice,
+            gasLimit: expectedGasLimit
+        });
 
         // Deferring the call and allowing enough time for `emitter.once('transactionHash')` to be invoked before emitting.
         await new Promise(resolve => setTimeout(resolve, 500));

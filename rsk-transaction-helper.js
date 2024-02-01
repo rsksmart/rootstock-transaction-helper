@@ -11,7 +11,7 @@ const DEFAULT_RSK_CONFIG = {
     attemptDelay: 1000,
 };
 
-const TRANSFER_GAS_COST = 21000;
+const DEFAULT_TRANSFER_GAS_LIMIT = 21000;
 
 const CONNECTION_ERROR_MESSAGE = `CONNECTION ERROR: Couldn't connect to node`;
 
@@ -62,20 +62,23 @@ class RskTransactionHelper {
      * @param {BN} gasLimit 
      * @param {string} destinationAddress The `to` address in the transaction
      * @param {string} callData The `data` to be sent in the transaction
-     * @param {Number} value The `value` in wei to be sent in the transaction
+     * @param {number} value The `value` in wei to be sent in the transaction
+     * @param {{ gasPrice: number, gasLimit: number }} gasOptions
      * @returns {string} The transaction hash
      */
-    async signAndSendTransaction(senderAddress, senderPrivateKey, gasPrice, gasLimit, destinationAddress, callData, value) {
+    async signAndSendTransaction(senderAddress, senderPrivateKey, destinationAddress, callData, value, gasOptions) {
         if(!this.rskConfig.chainId) {
             throw new Error('chainId not provided');
         }
         try {
             const privateKey = Buffer.from(senderPrivateKey, 'hex');
             const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
+            const gasPrice = gasOptions.gasPrice ? this.web3Client.utils.toBN(gasOptions.gasPrice) : await this.getGasPrice();
+            const gasLimit = gasOptions.gasLimit ? this.web3Client.utils.toBN(gasOptions.gasLimit) : this.web3Client.utils.toBN(DEFAULT_TRANSFER_GAS_LIMIT);
             const rawTx = {
                 nonce: transactionCount,
-                gasPrice: this.web3Client.utils.toBN(gasPrice),
-                gasLimit: this.web3Client.utils.toBN(gasLimit),
+                gasPrice,
+                gasLimit,
                 to: destinationAddress,
                 value: this.web3Client.utils.toBN(value || '0x00'),
                 data: callData,
@@ -112,7 +115,7 @@ class RskTransactionHelper {
      * @param {string} senderAddress The `from` address in the transaction
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
-     * @param {Number} estimatedGasPercentIncrement The percentage by which we estimate the gas will increment. Defaults to 10
+     * @param {number} estimatedGasPercentIncrement The percentage by which we estimate the gas will increment. Defaults to 10
      * @returns {string} The transaction hash
      */
     async signAndSendTransactionCheckingBalance(call, senderAddress, senderPrivateKey, destinationAddress, estimatedGasPercentIncrement = 10) {
@@ -146,20 +149,22 @@ class RskTransactionHelper {
      * @param {string} senderAddress The `from` address in the transaction
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
-     * @param {Number} value The `value` in wei to be sent in the transaction
-     * @param {Number} gasPrice 
+     * @param {number} value The `value` in wei to be sent in the transaction
+     * @param {{ gasPrice?: number, gasLimit?: number }} gasOptions 
      * @returns {string} The transaction hash
      */
-    async transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasPrice) {
+    async transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasOptions = {}) {
         if(!this.rskConfig.chainId) {
             throw new Error('chainId not provided');
         }
         const privateKey = Buffer.from(senderPrivateKey, 'hex');
         const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
+        const gasPrice = gasOptions.gasPrice ? this.web3Client.utils.toBN(gasOptions.gasPrice) : await this.getGasPrice();
+        const gasLimit = gasOptions.gasLimit ? this.web3Client.utils.toBN(gasOptions.gasLimit) : this.web3Client.utils.toBN(DEFAULT_TRANSFER_GAS_LIMIT);
         const rawTx = {
             nonce: transactionCount,
-            gasPrice: this.web3Client.utils.toBN(gasPrice),
-            gasLimit: this.web3Client.utils.toBN(TRANSFER_GAS_COST),
+            gasPrice,
+            gasLimit,
             to: destinationAddress,
             value: this.web3Client.utils.toBN(value || '0x00'),
             r: 0,
@@ -188,13 +193,14 @@ class RskTransactionHelper {
      * @param {string} senderAddress The `from` address in the transaction
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
-     * @param {Number} value The `value` in wei to be sent in the transaction
+     * @param {number} value The `value` in wei to be sent in the transaction
+     * @param {{ gasPrice?: number, gasLimit?: number }} gasOptions 
      * @returns {string} The transaction hash
      */
-    async transferFundsCheckingBalance(senderAddress, senderPrivateKey, destinationAddress, value) {
+    async transferFundsCheckingBalance(senderAddress, senderPrivateKey, destinationAddress, value, gasOptions = {}) {
         const balance = await this.getBalance(senderAddress);
-        const gasPrice = await this.getGasPrice();
-        const gasLimit = this.web3Client.utils.toBN(TRANSFER_GAS_COST);
+        const gasPrice = gasOptions.gasPrice ? this.web3Client.utils.toBN(gasOptions.gasPrice) : await this.getGasPrice();
+        const gasLimit = gasOptions.gasLimit ? this.web3Client.utils.toBN(gasOptions.gasLimit) : this.web3Client.utils.toBN(DEFAULT_TRANSFER_GAS_LIMIT);
         value = this.web3Client.utils.toBN(value);
         const requiredBalance = value.add(gasLimit.mul(gasPrice));
         if (requiredBalance.gt(balance)) {
@@ -257,7 +263,7 @@ class RskTransactionHelper {
 
     /**
      * Manually mines blocks. Used in a regtest environment. Useful for testing.
-     * @param {Number} amountOfBlocks The amount of blocks to manually mine. Defaults to 1.
+     * @param {number} amountOfBlocks The amount of blocks to manually mine. Defaults to 1.
      * @returns {void}
      */
     async mine(amountOfBlocks = 1) {
@@ -318,7 +324,7 @@ class RskTransactionHelper {
 
     /**
      * 
-     * @returns {Number} The latest block number in the blockchain
+     * @returns {number} The latest block number in the blockchain
      */
     async getBlockNumber() {
         return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getBlockNumber());

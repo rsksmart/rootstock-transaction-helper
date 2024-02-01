@@ -12,6 +12,11 @@ export type BalanceForCallResponse = {
     gasPrice: BN
 };
 
+export type GasOptions = {
+    gasPrice?: number;
+    gasLimit?: number;
+};
+
 export interface RskTransactionHelper {
     rskConfig: {hostUrl: string, chainId: number};
     web3Client: Web3;
@@ -20,9 +25,9 @@ export interface RskTransactionHelper {
     getTxReceipt(): Promise<TransactionReceipt>;
     getGasPrice(): Promise<BN>;
     getBalance(address: string): Promise<BN>;
-    transferFundsCheckingBalance(senderAddress: string, senderPrivateKey: string, destinationAddress: string, value: number): Promise<string>;
-    transferFunds(senderAddress: string, senderPrivateKey: string, destinationAddress: string, value: BN, gasPrice: BN): Promise<string>;
-    signAndSendTransaction(senderAddress: string, senderPrivateKey: string, gasPrice: BN, gasLimit: BN, destinationAddress: string, abi: string, value: BN): Promise<string>;
+    transferFundsCheckingBalance(senderAddress: string, senderPrivateKey: string, destinationAddress: string, value: number, gasOptions?: GasOptions): Promise<string>;
+    transferFunds(senderAddress: string, senderPrivateKey: string, destinationAddress: string, value: number, gasOptions?: GasOptions): Promise<string>;
+    signAndSendTransaction(senderAddress: string, senderPrivateKey: string, destinationAddress: string, abi: string, value: number, gasOptions?: GasOptions): Promise<string>;
     signAndSendTransactionCheckingBalance(call: ContractSendMethod, senderAddress: string, senderPrivateKey: string, destinationAddress: string, estimatedGasPercentIncrement: number): Promise<string>;
     checkBalanceForCall(call: ContractSendMethod, callerAddress: string): Promise<BalanceForCallResponse>;
     getBlockNumber(): Promise<number>;
