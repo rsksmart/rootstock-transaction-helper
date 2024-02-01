@@ -150,7 +150,7 @@ class RskTransactionHelper {
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
      * @param {number} value The `value` in wei to be sent in the transaction
-     * @param {{ gasPrice: number, gasLimit: number }} gasOptions 
+     * @param {{ gasPrice?: number, gasLimit?: number }} gasOptions 
      * @returns {string} The transaction hash
      */
     async transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasOptions = {}) {
@@ -194,7 +194,7 @@ class RskTransactionHelper {
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
      * @param {number} value The `value` in wei to be sent in the transaction
-     * @param {{ gasPrice: number, gasLimit: number }} gasOptions 
+     * @param {{ gasPrice?: number, gasLimit?: number }} gasOptions 
      * @returns {string} The transaction hash
      */
     async transferFundsCheckingBalance(senderAddress, senderPrivateKey, destinationAddress, value, gasOptions = {}) {
