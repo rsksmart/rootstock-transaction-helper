@@ -1,5 +1,5 @@
 'use strict';
-const Web3 = require('web3');
+const { Web3 } = require('web3');
 const Tx = require('ethereumjs-tx');
 const RskTransactionHelperException = require('./rsk-transaction-helper-error');
 
@@ -58,8 +58,6 @@ class RskTransactionHelper {
      * Creates a transaction with the provided parameters, signs and sends it.
      * @param {string} senderAddress The `from` address in the transaction
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
-     * @param {BN} gasPrice
-     * @param {BN} gasLimit 
      * @param {string} destinationAddress The `to` address in the transaction
      * @param {string} callData The `data` to be sent in the transaction
      * @param {number} value The `value` in wei to be sent in the transaction
@@ -73,14 +71,14 @@ class RskTransactionHelper {
         try {
             const privateKey = Buffer.from(senderPrivateKey, 'hex');
             const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
-            const gasPrice = gasOptions.gasPrice ? this.web3Client.utils.toBN(gasOptions.gasPrice) : await this.getGasPrice();
-            const gasLimit = gasOptions.gasLimit ? this.web3Client.utils.toBN(gasOptions.gasLimit) : this.web3Client.utils.toBN(DEFAULT_TRANSFER_GAS_LIMIT);
+            const gasPrice = gasOptions.gasPrice ? gasOptions.gasPrice : Number(await this.getGasPrice());
+            const gasLimit = gasOptions.gasLimit ? gasOptions.gasLimit : DEFAULT_TRANSFER_GAS_LIMIT;
             const rawTx = {
                 nonce: transactionCount,
                 gasPrice,
                 gasLimit,
                 to: destinationAddress,
-                value: this.web3Client.utils.toBN(value || '0x00'),
+                value: Number(value) || '0x00',
                 data: callData,
                 r: 0,
                 s: 0,
@@ -129,7 +127,7 @@ class RskTransactionHelper {
         const gasIncrement = 100 + estimatedGasPercentIncrement;
 
         // Add a 10% increment
-        const gasLimit = checkBalance.estimatedGas.mul(this.web3Client.utils.toBN(gasIncrement.toString())).div(this.web3Client.utils.toBN('100'));
+        const gasLimit = checkBalance.estimatedGas * this.web3Client.utils.toBigInt(gasIncrement.toString()) / this.web3Client.utils.toBigInt('100');
 
         // Sign and send raw transaction
         return await this.withRetryOnConnectionError(async () => {
@@ -159,14 +157,14 @@ class RskTransactionHelper {
         }
         const privateKey = Buffer.from(senderPrivateKey, 'hex');
         const transactionCount = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getTransactionCount(senderAddress, 'pending'));
-        const gasPrice = gasOptions.gasPrice ? this.web3Client.utils.toBN(gasOptions.gasPrice) : await this.getGasPrice();
-        const gasLimit = gasOptions.gasLimit ? this.web3Client.utils.toBN(gasOptions.gasLimit) : this.web3Client.utils.toBN(DEFAULT_TRANSFER_GAS_LIMIT);
+        const gasPrice = gasOptions.gasPrice ? gasOptions.gasPrice : await this.getGasPrice();
+        const gasLimit = gasOptions.gasLimit ? gasOptions.gasLimit : DEFAULT_TRANSFER_GAS_LIMIT;
         const rawTx = {
-            nonce: transactionCount,
-            gasPrice,
+            nonce: Number(transactionCount),
+            gasPrice: Number(gasPrice),
             gasLimit,
             to: destinationAddress,
-            value: this.web3Client.utils.toBN(value || '0x00'),
+            value: Number(value) || '0x00',
             r: 0,
             s: 0,
             v: this.rskConfig.chainId
@@ -198,12 +196,12 @@ class RskTransactionHelper {
      * @returns {string} The transaction hash
      */
     async transferFundsCheckingBalance(senderAddress, senderPrivateKey, destinationAddress, value, gasOptions = {}) {
+        value = this.web3Client.utils.toBigInt(value);
         const balance = await this.getBalance(senderAddress);
-        const gasPrice = gasOptions.gasPrice ? this.web3Client.utils.toBN(gasOptions.gasPrice) : await this.getGasPrice();
-        const gasLimit = gasOptions.gasLimit ? this.web3Client.utils.toBN(gasOptions.gasLimit) : this.web3Client.utils.toBN(DEFAULT_TRANSFER_GAS_LIMIT);
-        value = this.web3Client.utils.toBN(value);
-        const requiredBalance = value.add(gasLimit.mul(gasPrice));
-        if (requiredBalance.gt(balance)) {
+        const gasPrice = gasOptions.gasPrice ? this.web3Client.utils.toBigInt(gasOptions.gasPrice) : await this.getGasPrice();
+        const gasLimit = gasOptions.gasLimit ? this.web3Client.utils.toBigInt(gasOptions.gasLimit) : this.web3Client.utils.toBigInt(DEFAULT_TRANSFER_GAS_LIMIT);
+        const requiredBalance = value + gasLimit * gasPrice;
+        if (requiredBalance > balance) {
             throw new Error(`Insufficient balance. Required: ${requiredBalance.toString()}, current balance: ${balance.toString()}`);
         }
         return this.transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasPrice);
@@ -216,7 +214,7 @@ class RskTransactionHelper {
      */
     async getBalance(address) {
         const balance = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getBalance(address));
-        return this.web3Client.utils.toBN(balance);
+        return this.web3Client.utils.toBigInt(balance);
     }
 
     /**
@@ -225,8 +223,8 @@ class RskTransactionHelper {
      */
     async getGasPrice() {
         const gasPrice = await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getGasPrice());
-        const gasPriceBn = this.web3Client.utils.toBN(gasPrice);
-        return gasPriceBn.isZero() ? this.web3Client.utils.toBN('1') : gasPriceBn;
+        const gasPriceBn = this.web3Client.utils.toBigInt(gasPrice);
+        return gasPriceBn === 0n ? this.web3Client.utils.toBigInt('1') : gasPriceBn;
     }
 
     /**
@@ -237,17 +235,17 @@ class RskTransactionHelper {
      */
     async checkBalanceForCall(call, callerAddress) {
         const estimatedGas = await this.withRetryOnConnectionError(async () => await call.estimateGas());
-        const estimatedGasBn = this.web3Client.utils.toBN(estimatedGas);
+        const estimatedGasBn = this.web3Client.utils.toBigInt(estimatedGas);
         const gasPrice = await this.getGasPrice();
 
-        const requiredBalance = estimatedGasBn.mul(gasPrice);
+        const requiredBalance = estimatedGasBn * gasPrice;
         const callerBalance = await this.getBalance(callerAddress);
 
         return {
             estimatedGas: estimatedGasBn,
             requiredBalance: requiredBalance,
             callerBalance: callerBalance,
-            isEnough: callerBalance.gt(requiredBalance),
+            isEnough: callerBalance > requiredBalance,
             gasPrice: gasPrice
         };
     }

@@ -533,14 +533,14 @@ describe('RskTransactionHelper tests', () => {
         const expectedEstimatedGas = 1234;
         const expectedRequiredBalance = expectedGasPrice * expectedEstimatedGas;
         const bridgeContract = new web3Client.eth.Contract(minimalBridgeAbi, bridgeAddress);
-        const expectedGasLimit = web3Client.utils.toBN(1357);
+        const expectedGasLimit = web3Client.utils.toBigInt(1357);
 
         const checkBalanceForCallResponseMock = {
-            estimatedGas: web3Client.utils.toBN(expectedEstimatedGas),
-            requiredBalance: web3Client.utils.toBN(expectedRequiredBalance),
-            callerBalance: web3Client.utils.toBN(expectedBalance),
+            estimatedGas: web3Client.utils.toBigInt(expectedEstimatedGas),
+            requiredBalance: web3Client.utils.toBigInt(expectedRequiredBalance),
+            callerBalance: web3Client.utils.toBigInt(expectedBalance),
             isEnough: true,
-            gasPrice: web3Client.utils.toBN(expectedGasPrice)
+            gasPrice: web3Client.utils.toBigInt(expectedGasPrice)
         };
 
         sinon.replace(rskTransactionHelper, 'checkBalanceForCall', sinon.fake.returns(checkBalanceForCallResponseMock));
@@ -601,7 +601,7 @@ describe('RskTransactionHelper tests', () => {
             hostUrl: 'localhost:4444'
         });
 
-        assert.equal(rskTransactionHelper.getClient().currentProvider.host, expectedHost, 'Host should be as expected, prepended with http://');
+        assert.equal(rskTransactionHelper.getClient().currentProvider.clientUrl, expectedHost, 'Host should be as expected, prepended with http://');
 
     });
 
@@ -650,11 +650,11 @@ describe('RskTransactionHelper tests', () => {
         const expectedRequiredBalance = expectedGasPrice * expectedEstimatedGas;
 
         const checkBalanceForCallResponseMock = {
-            estimatedGas: web3Client.utils.toBN(expectedEstimatedGas),
-            requiredBalance: web3Client.utils.toBN(expectedRequiredBalance),
-            callerBalance: web3Client.utils.toBN(expectedBalance),
+            estimatedGas: web3Client.utils.toBigInt(expectedEstimatedGas),
+            requiredBalance: web3Client.utils.toBigInt(expectedRequiredBalance),
+            callerBalance: web3Client.utils.toBigInt(expectedBalance),
             isEnough: false,
-            gasPrice: web3Client.utils.toBN(expectedGasPrice)
+            gasPrice: web3Client.utils.toBigInt(expectedGasPrice)
         };
 
         sinon.replace(rskTransactionHelper, 'checkBalanceForCall', sinon.fake.returns(checkBalanceForCallResponseMock));
