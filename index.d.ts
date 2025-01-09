@@ -17,7 +17,13 @@ export type GasOptions = {
     gasLimit?: number;
 };
 
-export interface RskTransactionHelper {
+export type RskConfig = {
+    hostUrl?: string;
+    chainId?: number;
+};
+
+export class RskTransactionHelper {
+    constructor(rskConfig?: RskConfig);
     rskConfig: {hostUrl: string, chainId: number};
     web3Client: Web3;
     mine(amountOfBlocks?: number): Promise<void>;
