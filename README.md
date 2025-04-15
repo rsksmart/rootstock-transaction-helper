@@ -3,6 +3,8 @@
 # rootstock-transaction-helper
 ![Github CI/CD](https://github.com/rsksmart/rootstock-transaction-helper/actions/workflows/workflow.yml/badge.svg)
 [![CodeQL](https://github.com/rsksmart/rootstock-transaction-helper/workflows/CodeQL/badge.svg)](https://github.com/rsksmart/rootstock-transaction-helper/actions?query=workflow%3ACodeQL)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/rsksmart/rootstock-transaction-helper/badge)](https://scorecard.dev/viewer/?uri=github.com/rsksmart/rootstock-transaction-helper)
+
 
 Utility library to send transactions on Rootstock using web3 and ethereum-js 
 
