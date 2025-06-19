@@ -25,7 +25,7 @@ type Config = {
     chainId?: number | string,
 };
 
-export default class RskTransactionHelper {
+export class RskTransactionHelper {
     constructor(config?: Config);
     rskConfig: Config;
     web3Client: Web3;
