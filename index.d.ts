@@ -1,5 +1,6 @@
 import Web3 from 'web3';
 import { TransactionReceipt, TransactionConfig } from 'web3-core';
+import type { Block } from 'web3-eth';
 import { ContractSendMethod } from 'web3-eth-contract';
 
 import BN from 'bn.js';
@@ -32,4 +33,9 @@ export interface RskTransactionHelper {
     checkBalanceForCall(call: ContractSendMethod, callerAddress: string): Promise<BalanceForCallResponse>;
     getBlockNumber(): Promise<number>;
     sendTransaction(txConfig: TransactionConfig): Promise<string>;
+    newAccountWithSeed(seed: string): Promise<string>;
+    updateBridge(): Promise<void>;
+    getBlock(blockHashOrBlockNumber: number | string): Promise<Block>;
+    importAccount(privateKey: string): Promise<string>;
+    unlockAccount(address: string): Promise<boolean>;
 }
