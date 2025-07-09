@@ -356,7 +356,7 @@ class RskTransactionHelper {
 
     /**
      * Calls the `updateBridge` method of the federator to run bookkeeping logic.
-     * @returns null
+     * @returns {Promise<void>}
      */
     async updateBridge() {
         const sendUpdateBridgeRequest = () => {
@@ -370,7 +370,7 @@ class RskTransactionHelper {
                     if(error) {
                         return reject(error);
                     }
-                    resolve(response.result);
+                    resolve();
                 });
             });
         };
@@ -379,7 +379,7 @@ class RskTransactionHelper {
 
     /**
      * @param {number | string} blockHashOrBlockNumber, block number or block hash. Defaults to 'latest'
-     * @returns {Block}
+     * @returns {Promise<Block>}
      */
     async getBlock(blockHashOrBlockNumber = 'latest') {
         return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.getBlock(blockHashOrBlockNumber));
@@ -387,7 +387,7 @@ class RskTransactionHelper {
 
     /**
      * @param {string} accountPrivateKey to be imported
-     * @returns {string} address of the imported account
+     * @returns {Promise<string>} address of the imported account
      */
     async importAccount(accountPrivateKey) {
         return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.importRawKey(accountPrivateKey, ''));
@@ -395,7 +395,7 @@ class RskTransactionHelper {
 
     /**
      * @param {string} accountAddress to unlock
-     * @returns {boolean} true if unlocked successfully, false otherwise
+     * @returns {Promise<boolean>} true if unlocked successfully, false otherwise
      */
     async unlockAccount(accountAddress) {
         return await this.withRetryOnConnectionError(async () => await this.web3Client.eth.personal.unlockAccount(accountAddress, ''));

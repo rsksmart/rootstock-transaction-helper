@@ -1,5 +1,6 @@
 import Web3 from 'web3';
 import { TransactionReceipt, TransactionConfig } from 'web3-core';
+import type { Block } from 'web3-eth';
 import { ContractSendMethod } from 'web3-eth-contract';
 
 import BN from 'bn.js';
@@ -17,8 +18,16 @@ export type GasOptions = {
     gasLimit?: number;
 };
 
-export interface RskTransactionHelper {
-    rskConfig: {hostUrl: string, chainId: number};
+type Config = {
+    hostUrl?: string,
+    maxAttempts?: number,
+    attemptDelay?: number,
+    chainId?: number | string,
+};
+
+export class RskTransactionHelper {
+    constructor(config?: Config);
+    rskConfig: Config;
     web3Client: Web3;
     mine(amountOfBlocks?: number): Promise<void>;
     getClient(): Web3;
@@ -32,4 +41,9 @@ export interface RskTransactionHelper {
     checkBalanceForCall(call: ContractSendMethod, callerAddress: string): Promise<BalanceForCallResponse>;
     getBlockNumber(): Promise<number>;
     sendTransaction(txConfig: TransactionConfig): Promise<string>;
+    newAccountWithSeed(seed: string): Promise<string>;
+    updateBridge(): Promise<void>;
+    getBlock(blockHashOrBlockNumber: number | string): Promise<Block>;
+    importAccount(privateKey: string): Promise<string>;
+    unlockAccount(address: string): Promise<boolean>;
 }

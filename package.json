@@ -1,6 +1,6 @@
 {
   "name": "@rsksmart/rootstock-transaction-helper",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "Utilitary library to send transactions on Rootstock using web3 and ethereum-js",
   "main": "index.js",
   "scripts": {
