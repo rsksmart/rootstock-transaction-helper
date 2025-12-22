@@ -6,7 +6,8 @@
   "scripts": {
     "test": "mocha ./tests",
     "coverage": "nyc npm run test",
-    "sample": "node ./samples/send-transaction.js"
+    "sample": "node ./samples/send-transaction.js",
+    "integration-test": "node ./integration-test.js"
   },
   "repository": {
     "type": "git",
