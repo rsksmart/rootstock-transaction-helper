@@ -1,7 +1,7 @@
 {
   "name": "@rsksmart/rootstock-transaction-helper",
-  "version": "5.0.2",
-  "description": "Utilitary library to send transactions on Rootstock using web3 and ethereum-js",
+  "version": "6.0.0",
+  "description": "Utilitary library to send transactions on Rootstock using ethers.js",
   "main": "index.js",
   "scripts": {
     "test": "mocha ./tests",
@@ -21,14 +21,14 @@
   "keywords": [
 		"rootstock",
 		"rsk",
-		"web3",
+    "ethers",
 		"blockchain",
     "bridge",
     "powpeg"
 	],
   "dependencies": {
-    "ethereumjs-tx": "^1.3.7",
-    "web3": "^1.8.1"
+    "bn.js": "^4.11.8",
+    "ethers": "^6.13.5"
   },
   "devDependencies": {
     "rewire": "^6.0.0",
