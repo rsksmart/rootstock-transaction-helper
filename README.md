@@ -6,7 +6,7 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/rsksmart/rootstock-transaction-helper/badge)](https://scorecard.dev/viewer/?uri=github.com/rsksmart/rootstock-transaction-helper)
 
 
-Utility library to send transactions on Rootstock using web3 and ethereum-js 
+Utility library to send transactions on Rootstock using ethers.js
 
 ## Running a sample
 

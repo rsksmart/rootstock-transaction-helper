@@ -653,8 +653,6 @@ describe('RskTransactionHelper tests', () => {
             hostUrl: PROVIDER_URL
         });
 
-        const provider = rskTransactionHelper.getClient();
-
         const expectedBalance = 9999999;
         const expectedGasPrice = 1000;
         const expectedEstimatedGas = 1234;
