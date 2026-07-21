@@ -805,12 +805,13 @@ describe('RskTransactionHelper tests', () => {
 
     it('should fail constructing the helper if `maxAttempts` is less than 1', () => {
 
+        // A config validation error, not a provider-creation error, so it must not be wrapped as one.
         assert.throws(() => {
             new RskTransactionHelper({
                 hostUrl: PROVIDER_URL,
                 maxAttempts: 0
             });
-        }, RskTransactionHelperError, 'Error creating ethers provider');
+        }, Error, 'Invalid maxAttempts provided. Must be greater than 0.');
 
     });
 
@@ -1189,7 +1190,7 @@ describe('RskTransactionHelper tests', () => {
             gasLimit: 8000000n,
             gasUsed: 1000000n,
             miner: TEST_SENDER_ADDRESS,
-            difficulty: 0n,
+            difficulty: 131072n,
             transactions: [],
             transactionsRoot: '0x0000000000000000000000000000000000000000000000000000000000000000',
             stateRoot: '0x0000000000000000000000000000000000000000000000000000000000000000',
@@ -1199,9 +1200,11 @@ describe('RskTransactionHelper tests', () => {
 
         // Distinct from `expectedBlock.stateRoot`/`receiptsRoot` above, to prove the raw RPC value is preferred.
         const expectedReceiptsRoot = '0x1111111111111111111111111111111111111111111111111111111111111111';
+        // Deliberately distinct from `expectedBlock.difficulty` above, since it's the chain's cumulative difficulty, not this block's own.
+        const expectedTotalDifficulty = '0x87654321';
 
         sinon.replace(provider, 'getBlock', sinon.fake.resolves(expectedBlock));
-        sinon.replace(provider, 'send', sinon.fake.resolves({ size: '0x220', receiptsRoot: expectedReceiptsRoot }));
+        sinon.replace(provider, 'send', sinon.fake.resolves({ size: '0x220', receiptsRoot: expectedReceiptsRoot, totalDifficulty: expectedTotalDifficulty }));
 
         const block = await rskTransactionHelper.getBlock(blockHash);
 
@@ -1212,6 +1215,10 @@ describe('RskTransactionHelper tests', () => {
         assert.equal(block.size, 544, 'The block size is not as expected');
 
         assert.equal(block.receiptsRoot, expectedReceiptsRoot, 'The block receiptsRoot should come from the raw RPC response, not fall back to stateRoot');
+
+        assert.equal(block.difficulty, '131072', 'The block difficulty is not as expected');
+
+        assert.equal(block.totalDifficulty, BigInt(expectedTotalDifficulty).toString(), 'The block totalDifficulty should come from the raw RPC response, not be conflated with difficulty');
 
         assert.isTrue(provider.send.calledWith('eth_getBlockByHash', [blockHash, false]), 'Was not called with expected block hash param');
 

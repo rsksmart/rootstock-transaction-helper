@@ -98,7 +98,9 @@ function convertBlock(ethersBlock, rawBlock) {
         gasUsed: ethersBlock.gasUsed.toString(),
         miner: ethersBlock.miner,
         difficulty: ethersBlock.difficulty ? ethersBlock.difficulty.toString() : '0',
-        totalDifficulty: ethersBlock.difficulty ? ethersBlock.difficulty.toString() : '0',
+        // `totalDifficulty` is the chain's cumulative difficulty, a different value than this block's own `difficulty`.
+        // ethers.Block doesn't expose it, so it's read from the raw RPC response instead.
+        totalDifficulty: (rawBlock && rawBlock.totalDifficulty) ? BigInt(rawBlock.totalDifficulty).toString() : '0',
         // ethers.Block does not expose the block's byte size (`length` is the transaction count), so it's read from the raw RPC response instead.
         size: rawBlock && rawBlock.size ? Number(rawBlock.size) : 0,
         transactions: ethersBlock.transactions,
@@ -116,10 +118,10 @@ class RskTransactionHelper {
         if(!this.rskConfig.hostUrl || (typeof this.rskConfig.hostUrl !== 'string')) {
             throw new Error('Invalid host provided');
         }
+        if(this.rskConfig.maxAttempts < 1) {
+            throw new Error('Invalid maxAttempts provided. Must be greater than 0.');
+        }
         try {
-            if(this.rskConfig.maxAttempts < 1) {
-                throw new Error('Invalid maxAttempts provided. Must be greater than 0.');
-            }
             let host = this.rskConfig.hostUrl;
             if(!host.startsWith('http://') && !host.startsWith('https://')){
                 host = `http://${host}`;
@@ -154,8 +156,8 @@ class RskTransactionHelper {
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
      * @param {string} callData The `data` to be sent in the transaction
-     * @param {number} value The `value` in wei to be sent in the transaction
-     * @param {{ gasPrice: number, gasLimit: number }} gasOptions
+     * @param {number | string | bigint} value The `value` in wei to be sent in the transaction
+     * @param {{ gasPrice?: number | string | bigint, gasLimit?: number | string | bigint }} [gasOptions]
      * @returns {string} The transaction hash
      */
     async signAndSendTransaction(senderAddress, senderPrivateKey, destinationAddress, callData, value, gasOptions = {}) {
@@ -241,8 +243,8 @@ class RskTransactionHelper {
      * @param {string} senderAddress The `from` address in the transaction
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
-     * @param {number} value The `value` in wei to be sent in the transaction
-     * @param {{ gasPrice?: number, gasLimit?: number }} gasOptions 
+     * @param {number | string | bigint} value The `value` in wei to be sent in the transaction
+     * @param {{ gasPrice?: number | string | bigint, gasLimit?: number | string | bigint }} [gasOptions]
      * @returns {string} The transaction hash
      */
     async transferFunds(senderAddress, senderPrivateKey, destinationAddress, value, gasOptions = {}) {
@@ -286,8 +288,8 @@ class RskTransactionHelper {
      * @param {string} senderAddress The `from` address in the transaction
      * @param {string} senderPrivateKey The `from` address private key to sign the transaction
      * @param {string} destinationAddress The `to` address in the transaction
-     * @param {number} value The `value` in wei to be sent in the transaction
-     * @param {{ gasPrice?: number, gasLimit?: number }} gasOptions 
+     * @param {number | string | bigint} value The `value` in wei to be sent in the transaction
+     * @param {{ gasPrice?: number | string | bigint, gasLimit?: number | string | bigint }} [gasOptions]
      * @returns {string} The transaction hash
      */
     async transferFundsCheckingBalance(senderAddress, senderPrivateKey, destinationAddress, value, gasOptions = {}) {
