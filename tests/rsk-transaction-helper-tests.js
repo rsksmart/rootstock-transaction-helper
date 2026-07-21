@@ -373,6 +373,38 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should transfer funds checking balance when `value` is already provided as a BN instance', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+            chainId: 31
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const expectedBalance = BigInt('999999999999999999997958000000');
+        const expectedGasPrice = BigInt('1000');
+
+        const txResponse = {
+            hash: TEST_TX_HASH
+        };
+
+        sinon.replace(provider, 'broadcastTransaction', sinon.fake.resolves(txResponse));
+        sinon.replace(provider, 'getBalance', sinon.fake.resolves(expectedBalance));
+        sinon.replace(provider, 'getFeeData', sinon.fake.resolves({ gasPrice: expectedGasPrice }));
+        sinon.replace(provider, 'getTransactionCount', sinon.fake.resolves(5));
+
+        // Passing `value` as a BN instance exercises the `toBN` passthrough branch instead of converting from a number/string/bigint.
+        const value = new BN(1000000000);
+
+        const result = await rskTransactionHelper.transferFundsCheckingBalance(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, value);
+
+        assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
+
+        assert.isTrue(provider.broadcastTransaction.calledOnce, 'broadcastTransaction was called');
+
+    });
+
     it('should sign and send transaction', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
@@ -471,6 +503,63 @@ describe('RskTransactionHelper tests', () => {
         assert.equal(result.callerBalance.toString(), expectedBalance.toString(), 'Resulting caller balance is as expected');
         assert.equal(result.isEnough, true, 'It is enough');
         assert.equal(result.gasPrice.toString(), expectedGasPrice.toString(), 'Resulting gasPrice is as expected');
+
+    });
+
+    it('should check balance for a call using an already-known gas estimate when `estimateGas` is not a function', async () => {
+
+        const bridgeAddress = '0x0000000000000000000000000000000001000006';
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const expectedBalance = 9999999;
+        const expectedGasPrice = 1000;
+        const knownGasEstimate = 1234;
+        const expectedRequiredBalance = expectedGasPrice * knownGasEstimate;
+
+        sinon.replace(provider, 'getBalance', sinon.fake.resolves(BigInt(expectedBalance)));
+        sinon.replace(provider, 'getFeeData', sinon.fake.resolves({ gasPrice: BigInt(expectedGasPrice) }));
+
+        // `call` here is a plain already-known gas estimate, not a `ContractSendMethod`-like object.
+        const result = await rskTransactionHelper.checkBalanceForCall(knownGasEstimate, bridgeAddress);
+
+        assert.equal(result.estimatedGas.toString(), knownGasEstimate.toString(), 'Resulting estimated gas is as expected');
+        assert.equal(result.requiredBalance.toString(), expectedRequiredBalance.toString(), 'Resulting required balance is as expected');
+        assert.equal(result.isEnough, true, 'It is enough');
+
+    });
+
+    it('should return `isEnough` as false when checking balance for a call and the balance is insufficient', async () => {
+
+        const bridgeAddress = '0x0000000000000000000000000000000001000006';
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const expectedBalance = 100;
+        const expectedGasPrice = 1000;
+        const expectedEstimatedGas = 1234;
+        const expectedRequiredBalance = expectedGasPrice * expectedEstimatedGas;
+
+        const mockCall = {
+            estimateGas: () => Promise.resolve(BigInt(expectedEstimatedGas))
+        };
+
+        sinon.replace(provider, 'getBalance', sinon.fake.resolves(BigInt(expectedBalance)));
+        sinon.replace(provider, 'getFeeData', sinon.fake.resolves({ gasPrice: BigInt(expectedGasPrice) }));
+
+        const result = await rskTransactionHelper.checkBalanceForCall(mockCall, bridgeAddress);
+
+        assert.equal(result.requiredBalance.toString(), expectedRequiredBalance.toString(), 'Resulting required balance is as expected');
+        assert.equal(result.callerBalance.toString(), expectedBalance.toString(), 'Resulting caller balance is as expected');
+        assert.equal(result.isEnough, false, 'It should not be enough');
 
     });
 
@@ -578,6 +667,52 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should return tx receipt with its logs converted', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const expectedLog = {
+            address: '0x0000000000000000000000000000000001000006',
+            topics: ['0x0d0cee93'],
+            data: '0x01',
+            index: 0,
+            transactionIndex: 1,
+            transactionHash: TEST_TX_HASH,
+            blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+            blockNumber: 1n
+        };
+
+        const expectedTxReceipt = {
+            status: 1,
+            hash: TEST_TX_HASH,
+            index: 1,
+            blockHash: '0x0000000000000000000000000000000000000000000000000000000000000000',
+            blockNumber: 1n,
+            from: TEST_SENDER_ADDRESS,
+            to: TEST_RECIPIENT_ADDRESS,
+            gasUsed: 20n,
+            gasPrice: 1000n,
+            logs: [expectedLog],
+            logsBloom: '0x'
+        };
+
+        sinon.replace(provider, 'getTransactionReceipt', sinon.fake.resolves(expectedTxReceipt));
+
+        const txReceipt = await rskTransactionHelper.getTxReceipt(TEST_TX_HASH);
+
+        assert.equal(txReceipt.logs.length, 1, 'tx receipt should have one log');
+        assert.equal(txReceipt.logs[0].address, expectedLog.address, 'log address should match');
+        assert.deepEqual(txReceipt.logs[0].topics, expectedLog.topics, 'log topics should match');
+        assert.equal(txReceipt.logs[0].data, expectedLog.data, 'log data should match');
+        assert.equal(txReceipt.logs[0].logIndex, expectedLog.index, 'log index should be mapped to `logIndex`');
+        assert.equal(txReceipt.logs[0].blockNumber, Number(expectedLog.blockNumber), 'log blockNumber should be converted to a number');
+
+    });
+
     it('should add "http://" to host', () => {
 
         const expectedHost = 'http://localhost:4444';
@@ -620,6 +755,17 @@ describe('RskTransactionHelper tests', () => {
                 hostUrl: null
             });
         }, 'Invalid host provided');
+
+    });
+
+    it('should fail constructing the helper if `maxAttempts` is less than 1', () => {
+
+        assert.throws(() => {
+            new RskTransactionHelper({
+                hostUrl: PROVIDER_URL,
+                maxAttempts: 0
+            });
+        }, RskTransactionHelperError, 'Error creating ethers provider');
 
     });
 
@@ -884,6 +1030,26 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should fail after exhausting all retry attempts on a persistent connection error', async () => {
+
+        const maxAttempts = 2;
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+            maxAttempts,
+            attemptDelay: 10,
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        sinon.stub(provider, 'send').rejects(connectionErrorMock);
+
+        await chai.expect(rskTransactionHelper.updateBridge()).to.eventually.be.rejectedWith(Error, `Failed to execute function after attempting ${maxAttempts} time(s)`);
+
+        sinon.assert.callCount(provider.send, maxAttempts);
+
+    });
+
     it(`should return the block and be called with the 'latest' param if none specified`, async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
@@ -1039,6 +1205,24 @@ describe('RskTransactionHelper tests', () => {
         assert.isTrue(provider.send.calledWith('personal_unlockAccount', [accountAddress, '', '0x0']), `Was not called with expected account address param`);
 
         assert.isTrue(unlocked, 'The account was not unlocked');
+
+    });
+
+    it('should return false when the account could not be unlocked', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const accountAddress = '0xe9f5e6d433316e4abfeff8c40ac405b735129501';
+
+        sinon.replace(provider, 'send', sinon.fake.resolves(false));
+
+        const unlocked = await rskTransactionHelper.unlockAccount(accountAddress);
+
+        assert.isFalse(unlocked, 'The account should not have been unlocked');
 
     });
 
