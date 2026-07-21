@@ -1,7 +1,7 @@
 <img src="./rootstock_logo.png" alt="Rootstock" />
 
 # rootstock-transaction-helper
-![Github CI/CD](https://github.com/rsksmart/rootstock-transaction-helper/actions/workflows/workflow.yml/badge.svg)
+![Build and Test](https://github.com/rsksmart/rootstock-transaction-helper/actions/workflows/build-test.yml/badge.svg)
 [![CodeQL](https://github.com/rsksmart/rootstock-transaction-helper/workflows/CodeQL/badge.svg)](https://github.com/rsksmart/rootstock-transaction-helper/actions?query=workflow%3ACodeQL)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/rsksmart/rootstock-transaction-helper/badge)](https://scorecard.dev/viewer/?uri=github.com/rsksmart/rootstock-transaction-helper)
 
@@ -25,6 +25,14 @@ For example:
 ## Running unit tests
 
 > npm run test
+
+To also get a coverage report, run:
+
+> npm run coverage
+
+## Linting
+
+> npm run lint
 
 ## Contributing
 
