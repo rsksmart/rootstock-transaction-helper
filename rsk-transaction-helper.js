@@ -312,10 +312,6 @@ class RskTransactionHelper {
      */
     async checkBalanceForCall(call, callerAddress) {
         const estimatedGas = await this.withRetryOnConnectionError(async () => {
-            if (call.estimateGas) {
-                return call.estimateGas();
-            }
-            // For ethers contract calls, estimateGas is a method that returns a promise
             if (typeof call.estimateGas === 'function') {
                 return await call.estimateGas();
             }
@@ -362,22 +358,14 @@ class RskTransactionHelper {
         let id = Date.now();
 
         const evmIncreaseTime = async () => {
-            try {
-                const result = await this.provider.send('evm_increaseTime', [durationInMilliseconds]);
-                return { jsonrpc: '2.0', id: id, result: result };
-            } catch (error) {
-                throw error;
-            }
+            const result = await this.provider.send('evm_increaseTime', [durationInMilliseconds]);
+            return { jsonrpc: '2.0', id: id, result: result };
         };
 
         const evmMine = async (increaseTimeResult) => {
-            try {
-                const result = await this.provider.send('evm_mine', []);
-                id = (increaseTimeResult.id || id) + 1;
-                return { jsonrpc: '2.0', id: id, result: result };
-            } catch (error) {
-                throw error;
-            }
+            const result = await this.provider.send('evm_mine', []);
+            id = (increaseTimeResult.id || id) + 1;
+            return { jsonrpc: '2.0', id: id, result: result };
         };
 
         for(let i = 0; i < amountOfBlocks; i++) {
@@ -412,14 +400,7 @@ class RskTransactionHelper {
      * @returns {Promise<string>} returns the address of the account that was just created with the seed
      */
     async newAccountWithSeed(seed) {
-        const sendNewAccountWithSeedRequest = async () => {
-            try {
-                const result = await this.provider.send('personal_newAccountWithSeed', [seed]);
-                return result;
-            } catch (error) {
-                throw error;
-            }
-        };
+        const sendNewAccountWithSeedRequest = async () => await this.provider.send('personal_newAccountWithSeed', [seed]);
         return await this.withRetryOnConnectionError(sendNewAccountWithSeedRequest);
     }
 
@@ -429,11 +410,7 @@ class RskTransactionHelper {
      */
     async updateBridge() {
         const sendUpdateBridgeRequest = async () => {
-            try {
-                await this.provider.send('fed_updateBridge', []);
-            } catch (error) {
-                throw error;
-            }
+            await this.provider.send('fed_updateBridge', []);
         };
         return await this.withRetryOnConnectionError(sendUpdateBridgeRequest);
     }
