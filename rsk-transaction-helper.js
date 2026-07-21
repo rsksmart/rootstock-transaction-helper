@@ -15,6 +15,16 @@ const DEFAULT_TRANSFER_GAS_LIMIT = 21000;
 
 const CONNECTION_ERROR_MESSAGE = `CONNECTION ERROR: Couldn't connect to node`;
 
+// Node-level error codes ethers/Node.js surface when the underlying connection to the node fails.
+const CONNECTION_ERROR_CODES = ['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT', 'EHOSTUNREACH', 'EAI_AGAIN'];
+
+function isConnectionError(error) {
+    if (error.message && error.message.includes(CONNECTION_ERROR_MESSAGE)) {
+        return true;
+    }
+    return CONNECTION_ERROR_CODES.includes(error.code);
+}
+
 // Helper function to convert various value types to BN
 function toBN(value) {
     if (value instanceof BN) {
@@ -60,7 +70,7 @@ function convertTransactionReceipt(ethersReceipt) {
  * @param {ethers.Block} ethersBlock 
  * @returns {Block}
  */
-function convertBlock(ethersBlock) {
+function convertBlock(ethersBlock, rawBlock) {
     return {
         number: Number(ethersBlock.number),
         hash: ethersBlock.hash,
@@ -71,7 +81,8 @@ function convertBlock(ethersBlock) {
         miner: ethersBlock.miner,
         difficulty: ethersBlock.difficulty ? ethersBlock.difficulty.toString() : '0',
         totalDifficulty: ethersBlock.difficulty ? ethersBlock.difficulty.toString() : '0',
-        size: ethersBlock.length || 0,
+        // ethers.Block does not expose the block's byte size (`length` is the transaction count), so it's read from the raw RPC response instead.
+        size: rawBlock && rawBlock.size ? Number(rawBlock.size) : 0,
         transactions: ethersBlock.transactions,
         transactionsRoot: ethersBlock.transactionsRoot,
         stateRoot: ethersBlock.stateRoot,
@@ -108,7 +119,7 @@ class RskTransactionHelper {
                 return await fn();
             } catch (error) {
                 // Only retrying if the error is a connection error.
-                if (!error.message.includes(CONNECTION_ERROR_MESSAGE)) {
+                if (!isConnectionError(error)) {
                     throw error;
                 }
                 await wait(this.rskConfig.attemptDelay);
@@ -438,7 +449,9 @@ class RskTransactionHelper {
             }
             return await this.provider.getBlock(blockHashOrBlockNumber);
         });
-        return convertBlock(block);
+        // provider.getBlock() doesn't expose the block's byte size, so it's fetched separately from the raw RPC response.
+        const rawBlock = await this.withRetryOnConnectionError(async () => await this.provider.send('eth_getBlockByHash', [block.hash, false]));
+        return convertBlock(block, rawBlock);
     }
 
     /**

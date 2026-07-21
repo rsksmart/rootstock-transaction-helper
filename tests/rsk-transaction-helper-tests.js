@@ -841,6 +841,49 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should retry on a real ethers/Node.js connection-refused error, not just the legacy web3 error message', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+            maxAttempts: 2,
+            attemptDelay: 10,
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const econnrefusedError = Object.assign(new Error(''), { code: 'ECONNREFUSED' });
+
+        const providerSendStub = sinon.stub(provider, 'send');
+
+        providerSendStub.onCall(0).rejects(econnrefusedError);
+        providerSendStub.onCall(1).resolves(updateBridgeMock);
+
+        await rskTransactionHelper.updateBridge();
+
+        sinon.assert.callCount(providerSendStub, 2, 'provider.send should have been retried after the connection error');
+
+    });
+
+    it('should not retry on a non-connection error even if it has no message', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+            maxAttempts: 2,
+            attemptDelay: 10,
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const genericError = Object.assign(new Error(''), { code: 'CALL_EXCEPTION' });
+
+        sinon.stub(provider, 'send').rejects(genericError);
+
+        await chai.expect(rskTransactionHelper.updateBridge()).to.eventually.be.rejectedWith(genericError);
+
+        sinon.assert.calledOnce(provider.send);
+
+    });
+
     it(`should return the block and be called with the 'latest' param if none specified`, async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
@@ -866,12 +909,15 @@ describe('RskTransactionHelper tests', () => {
         };
 
         sinon.replace(provider, 'getBlock', sinon.fake.resolves(expectedBlock));
+        sinon.replace(provider, 'send', sinon.fake.resolves({ size: '0x220' }));
 
         const block = await rskTransactionHelper.getBlock();
 
         assert.isTrue(provider.getBlock.calledWith('latest'), 'Was not called with expected latest param');
 
         assert.equal(block.number, 5, 'The block number is not as expected');
+
+        assert.equal(block.size, 544, 'The block size is not as expected');
 
     });
 
@@ -902,12 +948,15 @@ describe('RskTransactionHelper tests', () => {
         };
 
         sinon.replace(provider, 'getBlock', sinon.fake.resolves(expectedBlock));
+        sinon.replace(provider, 'send', sinon.fake.resolves({ size: '0x220' }));
 
         const block = await rskTransactionHelper.getBlock(blockNumber);
 
         assert.isTrue(provider.getBlock.calledWith(blockNumber), `Was not called with expected block number param`);
 
         assert.equal(block.number, blockNumber, 'The block number is not as expected');
+
+        assert.equal(block.size, 544, 'The block size is not as expected');
 
     });
 
@@ -938,12 +987,17 @@ describe('RskTransactionHelper tests', () => {
         };
 
         sinon.replace(provider, 'getBlock', sinon.fake.resolves(expectedBlock));
+        sinon.replace(provider, 'send', sinon.fake.resolves({ size: '0x220' }));
 
         const block = await rskTransactionHelper.getBlock(blockHash);
 
         assert.isTrue(provider.getBlock.calledWith(blockHash), `Was not called with expected block hash param`);
 
         assert.equal(block.hash, blockHash, 'The block hash is not as expected');
+
+        assert.equal(block.size, 544, 'The block size is not as expected');
+
+        assert.isTrue(provider.send.calledWith('eth_getBlockByHash', [blockHash, false]), 'Was not called with expected block hash param');
 
     });
 
