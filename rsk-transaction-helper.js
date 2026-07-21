@@ -30,8 +30,26 @@ function toBN(value) {
     if (value instanceof BN) {
         return value;
     }
-    // BN constructor accepts BigInt, numbers, strings, etc. directly
+    // bn.js parses strings as base-10 by default, so a "0x"-prefixed hex string must be parsed with an explicit base.
+    if (typeof value === 'string' && value.toLowerCase().startsWith('0x')) {
+        return new BN(value.slice(2), 16);
+    }
+    // BN constructor accepts BigInt, numbers, decimal strings, etc. directly
     return new BN(value);
+}
+
+// The JSON-RPC spec expects quantity fields as hex-encoded strings; unlike web3.js, `provider.send()` forwards
+// params as-is, so numeric fields must be normalized here before being sent to the node.
+const QUANTITY_FIELDS = ['value', 'gas', 'gasPrice', 'nonce', 'chainId'];
+
+function normalizeTxConfig(txConfig) {
+    const normalized = Object.assign({}, txConfig);
+    for (const field of QUANTITY_FIELDS) {
+        if (normalized[field] !== undefined) {
+            normalized[field] = ethers.toQuantity(normalized[field]);
+        }
+    }
+    return normalized;
 }
 
 /**
@@ -48,7 +66,7 @@ function convertTransactionReceipt(ethersReceipt) {
         blockNumber: Number(ethersReceipt.blockNumber),
         from: ethersReceipt.from,
         to: ethersReceipt.to,
-        cumulativeGasUsed: ethersReceipt.gasUsed.toString(),
+        cumulativeGasUsed: ethersReceipt.cumulativeGasUsed ? ethersReceipt.cumulativeGasUsed.toString() : ethersReceipt.gasUsed.toString(),
         gasUsed: ethersReceipt.gasUsed.toString(),
         effectiveGasPrice: ethersReceipt.gasPrice ? ethersReceipt.gasPrice.toString() : '0',
         logs: ethersReceipt.logs.map(log => ({
@@ -86,7 +104,8 @@ function convertBlock(ethersBlock, rawBlock) {
         transactions: ethersBlock.transactions,
         transactionsRoot: ethersBlock.transactionsRoot,
         stateRoot: ethersBlock.stateRoot,
-        receiptsRoot: ethersBlock.receiptsRoot || ethersBlock.stateRoot
+        // `stateRoot` is a different Merkle root than `receiptsRoot`, so it's not a valid fallback for it.
+        receiptsRoot: (rawBlock && rawBlock.receiptsRoot) || ethersBlock.receiptsRoot || ''
     };
 }
 
@@ -280,7 +299,12 @@ class RskTransactionHelper {
         if (requiredBalance.gt(balance)) {
             throw new Error(`Insufficient balance. Required: ${requiredBalance.toString()}, current balance: ${balance.toString()}`);
         }
-        return this.transferFunds(senderAddress, senderPrivateKey, destinationAddress, value.toString(), gasOptions);
+        // Forward the exact `gasPrice`/`gasLimit` used for the balance check, instead of the original (possibly partial)
+        // `gasOptions`, so `transferFunds` can't independently fetch a different current gas price and diverge from what was checked.
+        return this.transferFunds(senderAddress, senderPrivateKey, destinationAddress, value.toString(), {
+            gasPrice: gasPrice.toString(),
+            gasLimit: gasLimit.toString()
+        });
     }
 
     /**
@@ -426,6 +450,9 @@ class RskTransactionHelper {
             }
             return await this.provider.getBlock(blockHashOrBlockNumber);
         });
+        if (!block) {
+            throw new Error(`Block not found: ${blockHashOrBlockNumber}`);
+        }
         // provider.getBlock() doesn't expose the block's byte size, so it's fetched separately from the raw RPC response.
         const rawBlock = await this.withRetryOnConnectionError(async () => await this.provider.send('eth_getBlockByHash', [block.hash, false]));
         return convertBlock(block, rawBlock);
@@ -447,8 +474,9 @@ class RskTransactionHelper {
      */
     async unlockAccount(accountAddress) {
         return await this.withRetryOnConnectionError(async () => {
-            // Duration must be a hex string, 0x0 means unlock indefinitely
-            return await this.provider.send('personal_unlockAccount', [accountAddress, '', '0x0']);
+            // No duration is passed, matching the pre-migration `web3.eth.personal.unlockAccount(address, password)`
+            // call shape, so the node applies its own default duration instead of an untested hardcoded value.
+            return await this.provider.send('personal_unlockAccount', [accountAddress, '']);
         });
     }
 
@@ -460,7 +488,7 @@ class RskTransactionHelper {
      */
     async sendTransaction(txConfig) {
         return await this.withRetryOnConnectionError(async () => {
-            const result = await this.provider.send('eth_sendTransaction', [txConfig]);
+            const result = await this.provider.send('eth_sendTransaction', [normalizeTxConfig(txConfig)]);
             return result;
         });
     }

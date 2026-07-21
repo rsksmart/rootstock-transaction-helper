@@ -1,7 +1,7 @@
 {
   "name": "@rsksmart/rootstock-transaction-helper",
   "version": "6.0.0",
-  "description": "Utilitary library to send transactions on Rootstock using ethers.js",
+  "description": "Utility library to send transactions on Rootstock using ethers.js",
   "main": "index.js",
   "scripts": {
     "test": "mocha ./tests",

@@ -372,6 +372,41 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should use the same gas price it checked the balance against when actually sending the transaction', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+            chainId: 31
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const expectedBalance = BigInt('999999999999999999997958000000');
+
+        const txResponse = {
+            hash: TEST_TX_HASH
+        };
+
+        sinon.replace(provider, 'broadcastTransaction', sinon.fake.resolves(txResponse));
+        sinon.replace(provider, 'getBalance', sinon.fake.resolves(expectedBalance));
+        sinon.replace(provider, 'getTransactionCount', sinon.fake.resolves(5));
+
+        // If the current network gas price changed between the balance check and the actual send, a second
+        // independent `getFeeData` call here would silently use a different value than what was checked.
+        const getFeeDataStub = sinon.stub(provider, 'getFeeData');
+        getFeeDataStub.onCall(0).resolves({ gasPrice: BigInt(1000) });
+        getFeeDataStub.onCall(1).resolves({ gasPrice: BigInt(9999999) });
+
+        const value = 1000000000;
+
+        const result = await rskTransactionHelper.transferFundsCheckingBalance(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, value);
+
+        assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
+
+        sinon.assert.calledOnce(getFeeDataStub);
+
+    });
+
     it('should transfer funds checking balance when `value` is already provided as a BN instance', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
@@ -401,6 +436,38 @@ describe('RskTransactionHelper tests', () => {
         assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
 
         assert.isTrue(provider.broadcastTransaction.calledOnce, 'broadcastTransaction was called');
+
+    });
+
+    it('should transfer funds checking balance when `value` and `gasOptions` are hex strings', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+            chainId: 31
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const expectedBalance = BigInt('999999999999999999997958000000');
+
+        const txResponse = {
+            hash: TEST_TX_HASH
+        };
+
+        sinon.replace(provider, 'broadcastTransaction', sinon.fake.resolves(txResponse));
+        sinon.replace(provider, 'getBalance', sinon.fake.resolves(expectedBalance));
+        sinon.replace(provider, 'getTransactionCount', sinon.fake.resolves(5));
+
+        // `toBN` used to throw ("Invalid character") on hex strings since bn.js defaults to base-10 parsing.
+        const value = '0x3b9aca00'; // 1000000000
+        const gasOptions = {
+            gasPrice: '0x3e8', // 1000
+            gasLimit: '0x5208', // 21000
+        };
+
+        const result = await rskTransactionHelper.transferFundsCheckingBalance(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, value, gasOptions);
+
+        assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
 
     });
 
@@ -690,6 +757,7 @@ describe('RskTransactionHelper tests', () => {
             from: TEST_SENDER_ADDRESS,
             to: TEST_RECIPIENT_ADDRESS,
             gasUsed: 20n,
+            cumulativeGasUsed: 120n, // Deliberately distinct from `gasUsed`, since it accounts for the whole block up to this tx.
             gasPrice: 1000n,
             logs: [expectedLog],
             logsBloom: '0x'
@@ -698,6 +766,9 @@ describe('RskTransactionHelper tests', () => {
         sinon.replace(provider, 'getTransactionReceipt', sinon.fake.resolves(expectedTxReceipt));
 
         const txReceipt = await rskTransactionHelper.getTxReceipt(TEST_TX_HASH);
+
+        assert.equal(txReceipt.cumulativeGasUsed, '120', 'cumulativeGasUsed should not be conflated with gasUsed');
+        assert.equal(txReceipt.gasUsed, '20', 'gasUsed should be unaffected');
 
         assert.equal(txReceipt.logs.length, 1, 'tx receipt should have one log');
         assert.equal(txReceipt.logs[0].address, expectedLog.address, 'log address should match');
@@ -717,29 +788,8 @@ describe('RskTransactionHelper tests', () => {
         });
 
         const provider = rskTransactionHelper.getClient();
-        
-        // In ethers v6, JsonRpcProvider stores the URL internally
-        // We can verify the provider was created and the URL processing worked
-        // by checking if the provider has the connection info
-        // The actual URL format is handled internally by ethers
-        assert.isNotNull(provider, 'Provider should be created');
-        
-        // Try to access the URL if possible (ethers v6 internal structure may vary)
-        try {
-            const connection = provider._getConnection ? provider._getConnection() : (provider.connection || provider);
-            const url = connection?.url || connection?._url?.href || connection?._url;
-            if (url && (url.includes('localhost:4444') || url === expectedHost)) {
-                assert.isTrue(true, 'Host URL was processed correctly');
-            } else {
-                // If we can't verify the exact URL format, at least verify provider creation succeeded
-                // which means the URL processing in the constructor worked
-                assert.isNotNull(provider, 'Provider created successfully with URL processing');
-            }
-        } catch {
-            // If we can't access the URL, just verify the provider was created
-            // which means the constructor processed the hostUrl correctly
-            assert.isNotNull(provider, 'Provider created successfully');
-        }
+
+        assert.equal(provider._getConnection().url, expectedHost, 'Host URL was not normalized as expected');
 
     });
 
@@ -1147,8 +1197,11 @@ describe('RskTransactionHelper tests', () => {
             logsBloom: '0x'
         };
 
+        // Distinct from `expectedBlock.stateRoot`/`receiptsRoot` above, to prove the raw RPC value is preferred.
+        const expectedReceiptsRoot = '0x1111111111111111111111111111111111111111111111111111111111111111';
+
         sinon.replace(provider, 'getBlock', sinon.fake.resolves(expectedBlock));
-        sinon.replace(provider, 'send', sinon.fake.resolves({ size: '0x220' }));
+        sinon.replace(provider, 'send', sinon.fake.resolves({ size: '0x220', receiptsRoot: expectedReceiptsRoot }));
 
         const block = await rskTransactionHelper.getBlock(blockHash);
 
@@ -1158,7 +1211,25 @@ describe('RskTransactionHelper tests', () => {
 
         assert.equal(block.size, 544, 'The block size is not as expected');
 
+        assert.equal(block.receiptsRoot, expectedReceiptsRoot, 'The block receiptsRoot should come from the raw RPC response, not fall back to stateRoot');
+
         assert.isTrue(provider.send.calledWith('eth_getBlockByHash', [blockHash, false]), 'Was not called with expected block hash param');
+
+    });
+
+    it('should throw a clear error if the requested block does not exist', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const blockNumber = 999999999;
+
+        sinon.replace(provider, 'getBlock', sinon.fake.resolves(null));
+
+        await chai.expect(rskTransactionHelper.getBlock(blockNumber)).to.eventually.be.rejectedWith(Error, `Block not found: ${blockNumber}`);
 
     });
 
@@ -1197,7 +1268,7 @@ describe('RskTransactionHelper tests', () => {
 
         const unlocked = await rskTransactionHelper.unlockAccount(accountAddress);
 
-        assert.isTrue(provider.send.calledWith('personal_unlockAccount', [accountAddress, '', '0x0']), `Was not called with expected account address param`);
+        assert.isTrue(provider.send.calledWith('personal_unlockAccount', [accountAddress, '']), `Was not called with expected account address param`);
 
         assert.isTrue(unlocked, 'The account was not unlocked');
 
@@ -1234,7 +1305,8 @@ describe('RskTransactionHelper tests', () => {
         const transaction = {
             from: '0xe9f5e6d433316e4abfeff8c40ac405b735129501',
             to: '0x4c8f18581c0167eb90a761b4a304e009b924f03b619a0c0e8ea3adfce20aee64',
-            value: 1000000000000000000,
+            // A value this large only fits safely in a string or bigint; a plain JS number would lose precision.
+            value: '1000000000000000000',
             gas: 21000,
             gasPrice: 100000000000,
         };
@@ -1243,9 +1315,47 @@ describe('RskTransactionHelper tests', () => {
 
         const actualTransactionHash = await rskTransactionHelper.sendTransaction(transaction);
 
-        assert.isTrue(provider.send.calledWith('eth_sendTransaction', [transaction]), `Was not called with expected transaction param`);
+        // The JSON-RPC spec expects quantity fields as hex-encoded strings, so `sendTransaction` normalizes them
+        // before forwarding to the node instead of sending the raw decimal values as-is.
+        assert.isTrue(provider.send.calledWith('eth_sendTransaction', [{
+            from: transaction.from,
+            to: transaction.to,
+            value: '0xde0b6b3a7640000',
+            gas: '0x5208',
+            gasPrice: '0x174876e800',
+        }]), `Was not called with the expected normalized transaction param`);
 
         assert.equal(transactionHash, actualTransactionHash, 'The transaction hash is not as expected');
+
+    });
+
+    it('should send a transaction with an already hex-encoded value without modifying it', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const transactionHash = '0x053a9e84bd5eae90834da13fa25af17307b405d6eb3f3dd34a31450a7067c76b';
+
+        const transaction = {
+            from: '0xe9f5e6d433316e4abfeff8c40ac405b735129501',
+            to: '0x4c8f18581c0167eb90a761b4a304e009b924f03b619a0c0e8ea3adfce20aee64',
+            value: '0xde0b6b3a7640000',
+            data: '0x',
+        };
+
+        sinon.replace(provider, 'send', sinon.fake.resolves(transactionHash));
+
+        await rskTransactionHelper.sendTransaction(transaction);
+
+        assert.isTrue(provider.send.calledWith('eth_sendTransaction', [{
+            from: transaction.from,
+            to: transaction.to,
+            value: '0xde0b6b3a7640000',
+            data: '0x',
+        }]), `Was not called with the expected normalized transaction param`);
 
     });
 
