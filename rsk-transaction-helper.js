@@ -139,7 +139,7 @@ class RskTransactionHelper {
      * @param {{ gasPrice: number, gasLimit: number }} gasOptions
      * @returns {string} The transaction hash
      */
-    async signAndSendTransaction(senderAddress, senderPrivateKey, destinationAddress, callData, value, gasOptions) {
+    async signAndSendTransaction(senderAddress, senderPrivateKey, destinationAddress, callData, value, gasOptions = {}) {
         if(!this.rskConfig.chainId) {
             throw new Error('chainId not provided');
         }

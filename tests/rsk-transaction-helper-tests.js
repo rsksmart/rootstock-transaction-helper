@@ -437,6 +437,34 @@ describe('RskTransactionHelper tests', () => {
 
     });
 
+    it('should sign and send transaction when `gasOptions` is omitted', async () => {
+
+        const rskTransactionHelper = new RskTransactionHelper({
+            hostUrl: PROVIDER_URL,
+            chainId: 31
+        });
+
+        const provider = rskTransactionHelper.getClient();
+
+        const expectedGasPrice = 1000;
+
+        const txResponse = {
+            hash: TEST_TX_HASH
+        };
+
+        sinon.replace(provider, 'broadcastTransaction', sinon.fake.resolves(txResponse));
+        sinon.replace(provider, 'getTransactionCount', sinon.fake.resolves(5));
+        sinon.replace(provider, 'getFeeData', sinon.fake.resolves({ gasPrice: BigInt(expectedGasPrice) }));
+
+        const value = 1000000000;
+
+        // `gasOptions` is declared optional in index.d.ts, so it must also be optional at the call site.
+        const result = await rskTransactionHelper.signAndSendTransaction(TEST_SENDER_ADDRESS, TEST_PRIVATE_KEY, TEST_RECIPIENT_ADDRESS, '0x', value);
+
+        assert.equal(result, TEST_TX_HASH, "Transaction hash is not as expected");
+
+    });
+
     it('should fail to sign and send transaction if chainId is not provided', async () => {
 
         const rskTransactionHelper = new RskTransactionHelper({
