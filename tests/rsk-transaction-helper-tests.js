@@ -15,7 +15,6 @@ const TEST_SENDER_ADDRESS = '0x0671fcbf6c14b08a18cb8db6e5345efaecb907c4';
 const TEST_RECIPIENT_ADDRESS = '0xcfc833ca1ebb1d4fe19230585a601d0b392eeed7';
 const TEST_TX_HASH = '0x49ea2e86436430232d69e3ef21ae08d111a4f23d666f8f3e8735b1ef5bda87b0';
 const TEST_PRIVATE_KEY = 'b7ddc1c73a0f94479ec44c814d57aec904865dfa1e3487ec8c648ee7fb2daf3c';
-const TEST_SERIALIZED_TX_HEX = 'f865058203e882520894cfc833ca1ebb1d4fe19230585a601d0b392eeed7843b9aca00801ba0010d207e7f109c1ebd9b934a3c5dc2c126280050b3c4902a7f2a0b0628e87596a01bbbd3ec2e80dc9000fa5738c3458b3ff58701757c52c24c2994ed2fde547a69';
 
 const increaseTimeResultMock = '0x1';
 const mineResultMock = null;
@@ -460,21 +459,6 @@ describe('RskTransactionHelper tests', () => {
 
     it('should check balance for contract method call', async () => {
 
-        const minimalBridgeAbi = [
-            {
-              "name": "getStateForDebugging",
-              "type": "function",
-              "constant": "true",
-              "inputs": [],
-              "outputs": [
-                {
-                  "name": "",
-                  "type": "bytes"
-                }
-              ]
-            }
-        ];
-
         const bridgeAddress = '0x0000000000000000000000000000000001000006';
 
         const rskTransactionHelper = new RskTransactionHelper({
@@ -565,24 +549,7 @@ describe('RskTransactionHelper tests', () => {
 
     it('should sign and send transaction checking balance', async () => {
 
-        const minimalBridgeAbi = [
-            {
-              "name": "getStateForDebugging",
-              "type": "function",
-              "constant": "true",
-              "inputs": [],
-              "outputs": [
-                {
-                  "name": "",
-                  "type": "bytes"
-                }
-              ]
-            }
-        ];
-
         const getStateForDebuggingSelector = '0x0d0cee93';
-
-        const bridgeAddress = '0x0000000000000000000000000000000001000006';
 
         const rskTransactionHelper = new RskTransactionHelper({
             hostUrl: PROVIDER_URL
@@ -740,7 +707,7 @@ describe('RskTransactionHelper tests', () => {
                 // which means the URL processing in the constructor worked
                 assert.isNotNull(provider, 'Provider created successfully with URL processing');
             }
-        } catch (e) {
+        } catch {
             // If we can't access the URL, just verify the provider was created
             // which means the constructor processed the hostUrl correctly
             assert.isNotNull(provider, 'Provider created successfully');
